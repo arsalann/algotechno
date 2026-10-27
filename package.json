@@ -1,0 +1,11 @@
+{
+  "name": "algotechno",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Algorithmic acid techno live coding rig (Strudel)",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}
