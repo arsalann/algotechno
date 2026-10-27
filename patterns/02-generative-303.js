@@ -21,4 +21,4 @@ stack(
   s("~ ~ ~ oh").bank("RolandTR909").gain(.3),
   s("<~ cp ~ [cp cp]>").bank("RolandTR909").room(.4).late(.25),
   acid.gain(.7),
-)
+).postgain(.5) // master volume: keeps the mix from clipping

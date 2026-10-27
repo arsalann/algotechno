@@ -11,20 +11,22 @@
     select, button, label { white-space: nowrap;
       background: #161616; color: #d6ff3a; border: 1px solid #333; padding: 4px 8px; font: inherit; }
     button:hover { background: #d6ff3a; color: #000; cursor: pointer; }
+    .hw-link { color: #ff8a2a; border: 1px solid #ff8a2a; padding: 4px 8px; text-decoration: none; white-space: nowrap; }
+    .hw-link:hover { background: #ff8a2a; color: #000; }
     #status { margin-left: auto; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     main { display: flex; height: calc(100vh - 45px); }
     aside { width: 230px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid #222; padding: 8px; box-sizing: border-box; }
     aside h4 { margin: 12px 0 6px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; }
     aside .hint { font-size: 11px; opacity: .5; line-height: 1.4; margin: 0 0 4px; }
     .block { display: block; width: 100%; text-align: left; margin: 0 0 4px; cursor: grab; border-left: 3px solid #d6ff3a; }
-    .block.modifier { border-left-color: #3ad6ff; color: #3ad6ff; }
-    .block.line { border-left-color: #ff3ad6; color: #ff3ad6; }
-    .block.modifier:hover { background: #3ad6ff; }
-    .block.line:hover { background: #ff3ad6; }
+    .block.modifier { border-left-color: #56B4E9; color: #56B4E9; }
+    .block.line { border-left-color: #CC79A7; color: #CC79A7; border-left-style: double; border-left-width: 4px; }
+    .block.modifier:hover { background: #56B4E9; }
+    .block.line:hover { background: #CC79A7; }
     #tip { font-size: 11px; opacity: .7; min-height: 30px; margin-top: 10px; line-height: 1.4; }
     #editor-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
     #file-state { opacity: .6; }
-    #file-state.dirty { color: #ffb43a; opacity: 1; }
+    #file-state.dirty { color: #E69F00; opacity: 1; }
     /* the component renders its editor into a sibling div, not inside itself */
     strudel-editor { display: none; }
     strudel-editor + div { flex: 1; min-height: 0; overflow: auto; font-size: 16px; }
@@ -34,11 +36,11 @@
     #problems.ok { color: #6f8a1f; }
     #problems .p { cursor: pointer; padding: 3px 0; line-height: 1.4; }
     #problems .p:hover { text-decoration: underline; }
-    #problems .error { color: #ff5a5a; }
-    #problems .warn { color: #ffb43a; }
+    #problems .error { color: #ff7a4a; font-weight: bold; }
+    #problems .warn { color: #F0E442; }
     #problems .fix { color: #aaa; }
-    .err-mark { position: absolute; left: 0; right: 0; pointer-events: none; background: rgba(255, 70, 70, .16); border-left: 3px solid #ff5a5a; z-index: 1; }
-    .err-mark.warn { background: rgba(255, 180, 58, .12); border-left-color: #ffb43a; }
+    .err-mark { position: absolute; left: 0; right: 0; pointer-events: none; background: rgba(213, 94, 0, .22); border-left: 5px solid #D55E00; z-index: 1; }
+    .err-mark.warn { background: rgba(240, 228, 66, .08); border-left: 5px dashed #F0E442; }
     @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
     #problems.shake { animation: shake .2s 2; }
     strudel-editor + div .cm-scroller { font-family: ui-monospace, Menlo, monospace !important; }
@@ -56,13 +58,14 @@
     <button id="saveas" title="save as a new file in patterns/ (⇧⌘S)">save as…</button>
     <span id="file-state"></span>
     <label title="when a pattern file is saved in another editor, load and play it here"><input type="checkbox" id="follow" checked /> hot-swap</label>
+    <a href="/hardware.html" class="hw-link" id="to-hw" title="open this code in hardware mode: virtual 303, 909, synths & modulators">🎛 hardware</a>
     <span id="status">click play once to unlock audio</span>
   </header>
   <main>
     <aside id="palette">
       <p class="hint">Click to add, or drag into the code.<br>
         <span style="color:#d6ff3a">■ sounds</span> join the stack ·
-        <span style="color:#3ad6ff">■ effects</span> attach to the line your cursor is on</p>
+        <span style="color:#56B4E9">■ effects</span> attach to the line your cursor is on</p>
       <div id="blocks"></div>
       <div id="tip"></div>
     </aside>
@@ -89,12 +92,13 @@
 
     const say = (msg) => (status.textContent = msg);
     const play = () => {
-      // don't send broken code to Strudel — the old version keeps playing instead
+      // don't send broken code to Strudel — the old version keeps playing instead.
+      // (a runtime error from the last play shouldn't block retrying, so clear it first)
+      runtimeProblem = null;
       if (validate().some((p) => p.level === 'error')) {
         problemsEl.classList.remove('shake'); void problemsEl.offsetWidth; problemsEl.classList.add('shake');
         return say('fix the red error first — the previous version keeps playing');
       }
-      runtimeProblem = null;
       ed().evaluate(); playing = true; say('playing ' + new Date().toLocaleTimeString());
     };
     const stop = () => { ed().stop(); playing = false; say('stopped'); };
@@ -153,12 +157,36 @@
       view().focus();
     }
 
+    // index where a real // comment starts on a line (not one inside a "string" like a URL)
+    function commentStart(text) {
+      let quote = null;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; }
+        else if (c === '"' || c === "'" || c === '`') quote = c;
+        else if (c === '/' && text[i + 1] === '/') return i;
+      }
+      return text.length;
+    }
+
     function addLayer(code) {
-      const doc = view().state.doc.toString();
-      // put the new layer just before the closing ")" of the last stack(...)
-      const close = doc.search(/^\)\s*$(?![\s\S]*^\))/m);
-      if (close === -1) return replaceRange(view().state.selection.main.head, view().state.selection.main.head, '\n' + code + '\n');
-      replaceRange(close, close, '  ' + code + '\n');
+      const { state } = view();
+      const doc = state.doc.toString();
+      // put the new layer just before the closing ")" of the last stack(...) — that line may
+      // carry more, e.g. ").postgain(.6)"
+      const close = doc.search(/^\)(?![\s\S]*^\))/m);
+      if (close === -1) return replaceRange(state.selection.main.head, state.selection.main.head, '\n' + code + '\n');
+      // the layer above needs a trailing comma, or the new one would be a syntax error
+      const changes = [{ from: close, insert: '  ' + code + '\n' }];
+      for (let n = state.doc.lineAt(close).number - 1; n >= 1; n--) {
+        const line = state.doc.line(n);
+        const body = line.text.slice(0, commentStart(line.text)).trimEnd();
+        if (!body) continue;
+        if (!/[,(]$/.test(body)) changes.push({ from: line.from + body.length, insert: ',' });
+        break;
+      }
+      view().dispatch({ changes, selection: { anchor: close + 3 + code.length + (changes.length > 1 ? 1 : 0) } });
+      view().focus();
     }
 
     function addModifier(code) {
@@ -170,8 +198,8 @@
         return;
       }
       // insert before a trailing comma / comment so the code stays valid
-      const m = text.match(/^(.*?)(\s*,?\s*(\/\/.*)?)$/);
-      const at = line.from + m[1].length;
+      const end = commentStart(text);
+      const at = line.from + text.slice(0, end).replace(/\s*,?\s*$/, '').length;
       replaceRange(at, at, code);
     }
 
@@ -302,7 +330,8 @@
       const tokens = [];
       try { for (const t of acorn.tokenizer(code, { ecmaVersion: 'latest' })) tokens.push(t); } catch { return; }
       for (const t of tokens) {
-        if (t.type.label !== 'string' && t.type.label !== 'template') continue;
+        // only "double-quoted" strings are mini-notation; 'single' and `template` strings are plain text
+        if (t.type.label !== 'string' || code[t.start] !== '"') continue;
         const str = String(t.value ?? '');
         const stack = [];
         for (let i = 0; i < str.length; i++) {
@@ -457,10 +486,27 @@
       // autocomplete + hover docs while typing
       ed().updateSettings({ isAutoCompletionEnabled: true, isTooltipEnabled: true });
       watchForEdits();
-      if (files.length) load(files[0]);
+      // coming from hardware mode's "</> to code" button
+      const imported = new URLSearchParams(location.search).has('import') && localStorage.getItem('algotechno:import');
+      if (imported) {
+        history.replaceState(null, '', '/');
+        ed().setCode(imported);
+        currentFile = null; savedCode = '';
+        picker.value = ''; // not one of the files until you save it
+        say('imported from hardware mode — 💾 save as… to keep it');
+      } else if (files.length) load(files[0]);
     })();
 
     picker.onchange = () => load(picker.value, playing);
+
+    // 🎛 hardware: take the current code along (hardware mode reads it into the machines)
+    document.getElementById('to-hw').onclick = (e) => {
+      e.preventDefault();
+      if (validate().some((p) => p.level === 'error')) return say('fix the red error first — hardware mode needs code that runs');
+      if (playing) stop();
+      localStorage.setItem('algotechno:tohw', JSON.stringify({ code: view().state.doc.toString(), file: currentFile }));
+      location.href = '/hardware.html?from=editor';
+    };
 
     // ---------- 🎹 note editor ----------
     let refreshTimer;
@@ -499,12 +545,12 @@
       if (!document.getElementById('follow').checked) return;
       const { file, code } = JSON.parse(e.data);
       if (code === view().state.doc.toString()) return;
-      if (isDirty() && file === currentFile && !confirm(file + ' changed on disk. Replace your unsaved browser edits?')) return;
+      if (isDirty() && !confirm(`${file} changed on disk. Load it and lose your unsaved edits${currentFile && currentFile !== file ? ' to ' + currentFile : ''}?`)) return;
       currentFile = file; savedCode = code;
       if (![...picker.options].some((o) => o.value === file)) picker.add(new Option(file));
       picker.value = file;
       ed().setCode(code);
-      play();
+      refresh(); // only restarts if the music was already playing
       say('hot-swapped ' + file + ' @ ' + new Date().toLocaleTimeString());
     };
   </script>

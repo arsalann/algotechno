@@ -3,9 +3,10 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = process.env.PORT || 4321;
-const ROOT = path.dirname(new URL(import.meta.url).pathname);
+const ROOT = path.dirname(fileURLToPath(import.meta.url)); // handles spaces / non-ASCII in the path
 const PATTERNS = path.join(ROOT, 'patterns');
 const clients = new Set();
 const lastWrite = new Map(); // files saved from the browser — don't echo them back
@@ -17,7 +18,8 @@ fs.watch(PATTERNS, (_evt, file) => {
   const p = path.join(PATTERNS, file);
   if (!fs.existsSync(p)) return;
   const code = fs.readFileSync(p, 'utf8');
-  if (lastWrite.get(file) === code) return;
+  const recent = lastWrite.get(file);
+  if (recent && recent.code === code && Date.now() - recent.at < 2000) return;
   lastWrite.delete(file);
   const msg = `data: ${JSON.stringify({ file, code })}\n\n`;
   for (const res of clients) res.write(msg);
@@ -33,11 +35,22 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname === '/save' && req.method === 'POST') {
+    // only our own page may write files: other websites can't send JSON cross-origin without
+    // a preflight we never answer, and the Origin must be this server
+    const origin = req.headers.origin;
+    if (!/^application\/json/.test(req.headers['content-type'] || '') || (origin && new URL(origin).host !== req.headers.host)) {
+      res.writeHead(403);
+      return res.end('forbidden');
+    }
     let body = '';
-    req.on('data', (c) => (body += c));
+    req.on('data', (c) => {
+      body += c;
+      if (body.length > 1_000_000) req.destroy(); // 1 MB is plenty for a pattern
+    });
     req.on('end', () => {
       try {
         const { file, code, overwrite } = JSON.parse(body);
+        if (typeof code !== 'string') throw new Error('nothing to save');
         // keep names simple and inside patterns/
         let name = String(file || '').trim().toLowerCase().replace(/\.js$/, '').replace(/[^a-z0-9-_ ]/g, '').replace(/\s+/g, '-');
         if (!name) throw new Error('please give the file a name');
@@ -47,8 +60,8 @@ const server = http.createServer((req, res) => {
           res.writeHead(409, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: `${name} already exists`, file: name }));
         }
-        lastWrite.set(name, code);
         fs.writeFileSync(target, code);
+        lastWrite.set(name, { code, at: Date.now() });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ file: name }));
       } catch (e) {
@@ -64,8 +77,10 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(files));
   }
   const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
-  const file = path.join(ROOT, rel);
-  if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+  const file = path.resolve(ROOT, rel);
+  // stay inside the repo, and never serve dotfiles (.git, .context, …) or node_modules
+  const hidden = rel.split(/[\\/]/).some((seg) => seg.startsWith('.') || seg === 'node_modules');
+  if (!file.startsWith(ROOT + path.sep) || hidden || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     res.writeHead(404);
     return res.end('not found');
   }
@@ -79,7 +94,7 @@ function listen(port) {
     console.log(`  port ${port} is busy, trying ${port + 1}...`);
     listen(port + 1);
   });
-  server.listen(port, () =>
+  server.listen(port, "127.0.0.1", () =>
     console.log(`\n  acid rig ready → http://localhost:${port}\n  edit patterns/*.js and save to hot-swap\n`));
 }
 listen(Number(PORT));

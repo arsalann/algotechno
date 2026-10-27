@@ -16,5 +16,5 @@ stack(
     .lpenv(4).lpdecay(.12)                 // per-note filter envelope
     .decay(.15).sustain(.3)
     .shape(.4)                             // dirt
-    .gain(.7)
-)
+    .gain(.7),
+).postgain(.5) // master volume: keeps the mix from clipping

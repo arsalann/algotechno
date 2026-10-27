@@ -162,7 +162,7 @@ export const BLOCKS = [
     group: 'Song structure',
     items: [
       { name: 'tempo', kind: 'line', tip: 'sets the BPM — change the 132 (sliders can\'t control tempo)', code: `setcps(132/60/4)` },
-      { name: 'empty track', kind: 'line', tip: 'a fresh start', code: `setcps(132/60/4)\n\nstack(\n  s("bd*4").bank("RolandTR909"),\n)` },
+      { name: 'empty track', kind: 'line', tip: 'a fresh start', code: `setcps(132/60/4)\n\nstack(\n  s("bd*4").bank("RolandTR909"),\n).postgain(.5)` },
       { name: 'only every other 8 bars', kind: 'modifier', tip: 'layer plays 8 bars on, 8 bars off', code: `.mask("<1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0>")` },
       { name: 'drop out last bar', kind: 'modifier', tip: 'silent on the 4th bar of every 4 — a mini-break', code: `.mask("<1 1 1 0>")` },
       { name: 'come in after 16', kind: 'modifier', tip: 'silent for 16 bars, then plays', code: `.mask("<0!16 1!16>")` },

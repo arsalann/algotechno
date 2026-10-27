@@ -5,12 +5,14 @@
 
 const NAMES = ['c', 'db', 'd', 'eb', 'e', 'f', 'gb', 'g', 'ab', 'a', 'bb', 'b'];
 const PC = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+const clampMidi = (m) => Math.min(119, Math.max(0, m)); // c-1 … b8
 const toName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 function toMidi(name) {
-  const m = /^([a-g])(#|s|b)?(-?\d)$/i.exec(name);
+  // octave is optional in Strudel ("c e g" = octave 3)
+  const m = /^([a-g])(#|s|b)?(-?\d+)?$/i.exec(name);
   if (!m) return null;
   const acc = m[2] === '#' || m[2] === 's' ? 1 : m[2] === 'b' ? -1 : 0;
-  return 12 * (parseInt(m[3]) + 1) + PC[m[1].toLowerCase()] + acc;
+  return 12 * (parseInt(m[3] ?? '3') + 1) + PC[m[1].toLowerCase()] + acc;
 }
 
 export const CHORDS = {
@@ -66,8 +68,11 @@ export function parse(str) {
   let s = str.trim(), bars = false;
   if (s.startsWith('<') && s.endsWith('>') && !s.slice(1, -1).includes('<')) { bars = true; s = s.slice(1, -1); }
   const steps = [];
-  for (const tok of splitTop(s)) {
+  const toks = splitTop(s);
+  for (const tok of toks) {
     const rep = /^(.+)\*(\d+)$/.exec(tok);
+    // "c2*16" alone = 16 steps; but "c2*4 ~" squeezes 4 notes into one step → not a flat grid
+    if (rep && toks.length > 1) return null;
     const [base, n] = rep && !rep[1].startsWith('<') ? [rep[1], Math.min(+rep[2], 64)] : [tok, 1];
     const step = parseStep(base);
     if (!step) return null;
@@ -80,7 +85,7 @@ export function parse(str) {
 export function flatten(str, total = 16) {
   const out = Array.from({ length: total }, () => []);
   function place(tok, start, slots) {
-    tok = tok.trim();
+    tok = tok.trim().replace(/\?$/, '').replace(/@[\d.]+$/, ''); // "x?" (maybe) → x, weights handled in placeSeq
     const rep = /^(.+)\*(\d+)$/.exec(tok);
     if (rep) return placeSeq(Array(+rep[2]).fill(rep[1]), start, slots);
     if (tok.startsWith('<') && tok.endsWith('>')) return place(splitTop(tok.slice(1, -1))[0] ?? '~', start, slots);
@@ -89,7 +94,18 @@ export function flatten(str, total = 16) {
     if (step && slots >= 1) out[Math.floor(start)].push(...step);
   }
   function placeSeq(toks, start, slots) {
-    toks.forEach((t, i) => place(t, start + (i * slots) / toks.length, slots / toks.length));
+    // "x!3" / "x !" repeat a step; "x@3" makes it 3 steps long
+    const items = [];
+    for (const t of toks) {
+      const bang = /^(.+)!(\d+)$/.exec(t);
+      if (t === '!' && items.length) items.push(items[items.length - 1]);
+      else if (bang) for (let i = 0; i < +bang[2]; i++) items.push(bang[1]);
+      else items.push(t);
+    }
+    const weight = (t) => +(/@([\d.]+)$/.exec(t)?.[1] ?? 1);
+    const total = items.reduce((a, t) => a + weight(t), 0);
+    let at = 0;
+    for (const t of items) { place(t, start + (at / total) * slots, (weight(t) / total) * slots); at += weight(t); }
   }
   placeSeq(splitTop(str.trim()), 0, total);
   return { bars: false, steps: out };
@@ -122,7 +138,7 @@ const css = `
 #ne .cell.beat { border-left: 1px solid #333; }
 #ne .cell:hover { background: #3a4a10; }
 #ne .cell.on { background: #d6ff3a; box-shadow: inset 0 0 0 1px #000; }
-#ne .cell.on.chord { background: #3ad6ff; }
+#ne .cell.on.chord { background: #56B4E9; box-shadow: inset 0 0 0 3px #000; }
 #ne .head { position: sticky; top: 0; background: #101010; z-index: 2; font-size: 10px; text-align: center; color: #777; height: 16px; }
 #ne .side { width: 220px; overflow-y: auto; border-left: 1px solid #222; padding: 6px 8px; }
 #ne .side h5 { margin: 8px 0 4px; font-size: 10px; letter-spacing: 1px; opacity: .6; text-transform: uppercase; }
@@ -141,9 +157,9 @@ export function createNoteEditor({ container, view, onChange, preview }) {
   let model = null;
   let mode = 'note', chordType = 'min', key = 0, scale = 'minor', lowOct = null;
 
-  function findTarget() {
+  function findTarget(near) {
     const doc = view().state.doc.toString();
-    const cursor = view().state.selection.main.head;
+    const cursor = near ?? view().state.selection.main.head;
     const re = /note\(\s*(["'])((?:(?!\1)[^\n])*)\1\s*\)/g;
     let best = null;
     for (const m of doc.matchAll(re)) {
@@ -156,8 +172,17 @@ export function createNoteEditor({ container, view, onChange, preview }) {
     return best;
   }
 
+  let written = null;
   function write() {
     const str = serialise(model);
+    // if the code was edited while the panel was open, find the note() again instead of
+    // overwriting whatever now sits at the old position
+    if (written !== null && view().state.doc.sliceString(target.from, target.to) !== written) {
+      const again = findTarget(target.from);
+      if (!again) return close();
+      target = again;
+    }
+    written = str;
     view().dispatch({ changes: { from: target.from, to: target.to, insert: str } });
     target.to = target.from + str.length;
     onChange();
@@ -167,6 +192,7 @@ export function createNoteEditor({ container, view, onChange, preview }) {
 
   function open() {
     close();
+    written = null;
     target = findTarget();
     el = document.createElement('div');
     el.id = 'ne';
@@ -192,7 +218,10 @@ export function createNoteEditor({ container, view, onChange, preview }) {
       el.querySelector('[data-x=close]').onclick = close;
       el.querySelector('[data-x=flat]').onclick = () => {
         model = flatten(str, 16);
-        if (!model.steps.some((s) => s.length)) model.steps[0] = [36];
+        if (!model.steps.some((s) => s.length)) {
+          el.querySelector('.msg').innerHTML = 'Couldn\'t find any notes the grid understands in there — edit this one as text.';
+          return;
+        }
         write(); open();
       };
       return;
@@ -289,8 +318,8 @@ export function createNoteEditor({ container, view, onChange, preview }) {
     $('[data-x=scale]').onchange = (e) => { scale = e.target.value; render(); };
     $('[data-x=down]').onclick = () => { lowOct = Math.max(-1, lowOct - 1); render(); };
     $('[data-x=up]').onclick = () => { lowOct = Math.min(7, lowOct + 1); render(); };
-    $('[data-x=shiftd]').onclick = () => { model.steps = model.steps.map((s) => s.map((x) => x - 1)); write(); render(); };
-    $('[data-x=shiftu]').onclick = () => { model.steps = model.steps.map((s) => s.map((x) => x + 1)); write(); render(); };
+    $('[data-x=shiftd]').onclick = () => { model.steps = model.steps.map((s) => s.map((x) => clampMidi(x - 1))); write(); render(); };
+    $('[data-x=shiftu]').onclick = () => { model.steps = model.steps.map((s) => s.map((x) => clampMidi(x + 1))); write(); render(); };
     $('[data-x=clear]').onclick = () => { model.steps = model.steps.map(() => []); write(); render(); };
     $('[data-x=close]').onclick = close;
   }
