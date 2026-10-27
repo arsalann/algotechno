@@ -161,6 +161,13 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .tr909 header .strip .knob .dial { width: 32px; height: 32px; }
 .mini-knob .dial { width: 32px !important; height: 32px !important; }
 
+/* ---------- sound browser ---------- */
+.patch { display: flex; align-items: center; gap: 6px; }
+.patch .lcd.patch-name { min-width: 210px; text-align: center; font-size: 13px; }
+.patch .hwbtn { padding: 6px 10px; }
+#keyboard .dname { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font: bold 8px Arial; color: var(--blue); }
+.bkey .dname { color: var(--sky); bottom: 18px; }
+
 /* ---------- auto-move ---------- */
 .mover { border-top: 1px solid #2a2a2a; padding: 8px 4px; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; }
 .mover .target { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; }

@@ -3,6 +3,8 @@
 // Knobs are read live through signal(() => P('name')), so turning them never restarts anything;
 // only "structural" changes (steps, waveforms, tempo) re-evaluate the code.
 
+import { SOUNDS, soundById } from '/sounds.js';
+
 const repl = document.getElementById('repl');
 const $ = (s, el = document) => el.querySelector(s);
 const h = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
@@ -176,7 +178,9 @@ function gen(live) {
 
   if (S.pad.latch && S.pad.held.length) {
     const chord = `[${S.pad.held.map((m) => noteName(m).toLowerCase()).join(',')}]`;
-    layers.push(`note("${chord}").s("${S.pad.wave}").detune(${v('pad.detune')})
+    const snd = soundById(S.pad.wave);
+    const extra = Object.entries(snd.params || {}).map(([k, x]) => `.${k}(${x})`).join('');
+    layers.push(`note("${chord}").s("${snd.s}")${extra}.detune(${v('pad.detune')})
     .attack(${v('pad.attack')}).release(${v('pad.release')}).sustain(.8)
     .lpf(${v('pad.cutoff')}).lpq(${v('pad.reso')})
     .delay(${v('fx.paddly')}).delaytime(${v('fx.time')}).delayfeedback(${v('fx.feedback')}).room(${v('fx.padrev')}).roomsize(${v('fx.size')})
@@ -216,17 +220,28 @@ const ensureAudio = () => (audioReady ??= (async () => {
 })());
 ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => ensureAudio(), { capture: true, once: true }));
 
+// sampled instruments download on first use, and a note triggered while downloading is lost —
+// so load each sound once (silently) before its first real note
+const loadedSounds = new Set();
+async function preload(s) {
+  if (loadedSounds.has(s)) return;
+  await ensureAudio();
+  await superdough({ note: 60, s, gain: 0 }, getAudioContext().currentTime + 0.01, 0.05);
+  loadedSounds.add(s);
+}
+
 // realtime notes (keyboard / step audition) straight into the sound engine
 async function sound(midis, voice) {
   try {
     await ensureAudio();
+    if (voice !== 'tb') await preload(soundById(S.pad.wave).s);
     const t = getAudioContext().currentTime + 0.01;
     for (const m of midis) {
       if (voice === 'tb')
         superdough({ note: m + S.v['tb.tune'], s: S.tb.wave, lpf: P('tb.cutoff'), lpq: P('tb.reso'), lpenv: P('tb.envmod'), lpdecay: P('tb.decay'),
           decay: Math.max(0.12, P('tb.decay')), sustain: 0, shape: P('tb.drive'), gain: TG() }, t, 0.25);
       else
-        superdough({ note: m, s: S.pad.wave, detune: P('pad.detune'), attack: P('pad.attack'), release: P('pad.release'), sustain: 0.8,
+        superdough({ ...soundById(S.pad.wave).params, note: m, s: soundById(S.pad.wave).s, detune: P('pad.detune'), attack: P('pad.attack'), release: P('pad.release'), sustain: 0.8,
           lpf: P('pad.cutoff'), lpq: P('pad.reso'), room: P('fx.padrev'), roomsize: P('fx.size'), delay: P('fx.paddly'),
           delaytime: P('fx.time'), delayfeedback: P('fx.feedback'), gain: PG() * 0.8 }, t, 0.6);
     }
@@ -436,8 +451,24 @@ function markModded() {
 
 // ---------- pad synth ----------
 for (const k of ['pad.cutoff', 'pad.reso', 'pad.attack', 'pad.release', 'pad.detune']) $('#pad-knobs').append(knob(k));
-switcher($('#pad-wave'), [['supersaw', 'SUPERSAW'], ['sawtooth', 'SAW'], ['square', 'PULSE'], ['triangle', 'TRI'], ['gm_pad_warm', 'WARM PAD'], ['gm_epiano1', 'E.PIANO']],
-  () => S.pad.wave, (w) => { S.pad.wave = w; rebuild(); });
+// sound browser: ◀ ▶ step through every sound, or pick from the grouped list
+const cats = [...new Set(SOUNDS.map((x) => x.cat))];
+$('#snd-list').append(...cats.map((c) => h('optgroup', { label: c }, ...SOUNDS.filter((x) => x.cat === c).map((x) => h('option', { value: x.id, textContent: x.name })))));
+function setSound(id, audition = true) {
+  S.pad.wave = soundById(id).id;
+  const i = SOUNDS.indexOf(soundById(id));
+  $('#snd-name').textContent = `${String(i + 1).padStart(2, '0')} · ${SOUNDS[i].name.toUpperCase()}`;
+  $('#snd-list').value = S.pad.wave;
+  status(`sound: ${SOUNDS[i].name} (${SOUNDS[i].cat})`);
+  rebuild();
+  if (audition) sound([60, 64, 67], 'pad'); // play a quick chord so you hear it (loads it first)
+  else ensureAudio().then(() => preload(soundById(S.pad.wave).s)).catch(() => {});
+}
+const stepSound = (d) => { const i = SOUNDS.indexOf(soundById(S.pad.wave)); setSound(SOUNDS[(i + d + SOUNDS.length) % SOUNDS.length].id); };
+$('#snd-prev').onclick = () => stepSound(-1);
+$('#snd-next').onclick = () => stepSound(1);
+$('#snd-list').onchange = (e) => setSound(e.target.value);
+setSound(S.pad.wave, false);
 const CHORD_SHAPES = { single: [0], minor: [0, 3, 7], major: [0, 4, 7], min7: [0, 3, 7, 10], maj7: [0, 4, 7, 11], min9: [0, 3, 7, 10, 14], sus4: [0, 5, 7], fifths: [0, 7, 12] };
 $('#pad-chord').append(...Object.keys(CHORD_SHAPES).map((c) => h('option', { value: c, textContent: c === 'single' ? 'ONE NOTE' : 'CHORD: ' + c.toUpperCase(), selected: S.pad.shape === c })));
 $('#pad-chord').onchange = (e) => { S.pad.shape = e.target.value; persist(); };
@@ -475,13 +506,15 @@ META['mix.master'].label = 'MASTER';
 // ---------- keyboard ----------
 const KEYMAP = 'awsedftgyhujk'; // computer keys → semitones 0..12
 function renderKbTarget() {
-  switcher($('#kb-target'), [['pad', '🎹 CHORD PAD'], ['transpose', '↕ 303 KEY'], ['step', '✎ 303 NOTES']], () => S.kb.target, (t) => {
-    S.kb.target = t; if (t !== 'step') { selStep = null; renderSeq(); } persist(); renderKbHint();
+  switcher($('#kb-target'), [['pad', '🎹 SOUNDS'], ['bass', '〰 303 LIVE'], ['drums', '🥁 DRUMS'], ['transpose', '↕ 303 KEY'], ['step', '✎ 303 NOTES']], () => S.kb.target, (t) => {
+    S.kb.target = t; if (t !== 'step') { selStep = null; renderSeq(); } persist(); renderKbHint(); renderKeyboard();
   });
   renderKbHint();
 }
 const KB_HINTS = {
-  pad: 'Keys play the <b>CHORD PAD</b> synth. Pick a chord shape on the pad to play full chords; press HOLD to keep one looping.',
+  pad: 'Keys play the sound chosen on the <b>CHORD PAD</b> (◀ ▶ to browse 60+ sounds). Pick a chord shape for full chords; HOLD keeps one looping.',
+  bass: 'Keys play the <b>303 sound live</b> on top of the pattern — use the 303 knobs to shape it while you jam.',
+  drums: 'Keys trigger the <b>drum machine</b> like pads — each key is one drum (names on the keys), using the current kit.',
   transpose: 'Keys move the whole <b>303 bassline</b> to a new root note — C plays it as written, D# shifts it up 3 semitones, and so on.',
   step: 'Keys <b>write notes into the 303</b>: click a step’s green note display, then play a key — it fills that step and jumps to the next.',
 };
@@ -496,6 +529,7 @@ function renderKeyboard() {
     const m = base + i, black = [1, 3, 6, 8, 10].includes(i % 12);
     const label = i < KEYMAP.length ? KEYMAP[i].toUpperCase() : '';
     const k = h('div', { className: black ? 'bkey' : 'wkey', textContent: label });
+    if (S.kb.target === 'drums') k.append(h('span', { className: 'dname', textContent: DRUMS[i % DRUMS.length][0].toUpperCase() }));
     k.dataset.m = m;
     k.onpointerdown = (e) => { e.preventDefault(); press(m); k.classList.add('down'); };
     k.onpointerup = k.onpointerleave = () => { k.classList.remove('down'); release(m); };
@@ -513,6 +547,13 @@ function press(m) {
     selStep = (selStep + 1) % 16; // auto-advance like real step-write
     renderSeq(); rebuild();
     status(`303 step ${selStep || 16} ← ${noteName(m - 12)}`);
+    return;
+  }
+  if (S.kb.target === 'bass') { sound([m - 12 + S.tb.transpose], 'tb'); status(`303 ${noteName(m - 12)}`); return; }
+  if (S.kb.target === 'drums') {
+    const [d, label] = DRUMS[(m - 12 * (S.kb.oct + 1)) % DRUMS.length];
+    ensureAudio().then(() => superdough({ s: d, bank: S.dr.kit, gain: DG(d) || 0.8, speed: P(`dr.${d}.tune`) }, getAudioContext().currentTime + 0.01, 0.3));
+    status(`🥁 ${label}`);
     return;
   }
   if (S.kb.target === 'transpose') {
@@ -696,8 +737,8 @@ async function importCode(code, file) {
   if (first) {
     const chord = first.map((h) => toMidi(h.v.note));
     S.pad.held = [...new Set(chord)].sort((a, b) => a - b); S.pad.latch = true;
-    const waves = ['supersaw', 'sawtooth', 'square', 'triangle', 'gm_pad_warm', 'gm_epiano1'];
-    if (waves.includes(first[0].v.s)) S.pad.wave = first[0].v.s;
+    const match = SOUNDS.find((x) => x.s === first[0].v.s && !x.params);
+    if (match) S.pad.wave = match.id;
     if (typeof first[0].v.cutoff === 'number') S.v['pad.cutoff'] = clamp('pad.cutoff', first[0].v.cutoff);
     found.push(`chord pad (${S.pad.held.map(noteName).join(' ')})`);
   }

@@ -69,7 +69,12 @@
           Press <b>HOLD</b> and the last chord you play keeps looping in the track.</div>
         <div class="row"><div class="row knobs" id="pad-knobs"></div><div class="spacer"></div><div class="strip" id="pad-strip"></div></div>
         <div class="row">
-          <div class="switch" id="pad-wave"></div>
+          <div class="patch" title="the sound the keys play — ◀ ▶ to browse">
+            <button class="hwbtn" id="snd-prev">◀</button>
+            <div class="lcd patch-name" id="snd-name"></div>
+            <button class="hwbtn" id="snd-next">▶</button>
+            <select class="hwsel" id="snd-list"></select>
+          </div>
         </div>
         <div class="row">
           <select id="pad-chord" class="hwsel" title="play a chord shape from one key"></select>
