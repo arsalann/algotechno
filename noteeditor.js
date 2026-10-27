@@ -122,7 +122,7 @@ const css = `
 #ne .cell.beat { border-left: 1px solid #333; }
 #ne .cell:hover { background: #3a4a10; }
 #ne .cell.on { background: #d6ff3a; box-shadow: inset 0 0 0 1px #000; }
-#ne .cell.on.chord { background: #3ad6ff; }
+#ne .cell.on.chord { background: #56B4E9; box-shadow: inset 0 0 0 3px #000; }
 #ne .head { position: sticky; top: 0; background: #101010; z-index: 2; font-size: 10px; text-align: center; color: #777; height: 16px; }
 #ne .side { width: 220px; overflow-y: auto; border-left: 1px solid #222; padding: 6px 8px; }
 #ne .side h5 { margin: 8px 0 4px; font-size: 10px; letter-spacing: 1px; opacity: .6; text-transform: uppercase; }

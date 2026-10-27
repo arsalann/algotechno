@@ -19,14 +19,14 @@
     aside h4 { margin: 12px 0 6px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: .55; }
     aside .hint { font-size: 11px; opacity: .5; line-height: 1.4; margin: 0 0 4px; }
     .block { display: block; width: 100%; text-align: left; margin: 0 0 4px; cursor: grab; border-left: 3px solid #d6ff3a; }
-    .block.modifier { border-left-color: #3ad6ff; color: #3ad6ff; }
-    .block.line { border-left-color: #ff3ad6; color: #ff3ad6; }
-    .block.modifier:hover { background: #3ad6ff; }
-    .block.line:hover { background: #ff3ad6; }
+    .block.modifier { border-left-color: #56B4E9; color: #56B4E9; }
+    .block.line { border-left-color: #CC79A7; color: #CC79A7; border-left-style: double; border-left-width: 4px; }
+    .block.modifier:hover { background: #56B4E9; }
+    .block.line:hover { background: #CC79A7; }
     #tip { font-size: 11px; opacity: .7; min-height: 30px; margin-top: 10px; line-height: 1.4; }
     #editor-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
     #file-state { opacity: .6; }
-    #file-state.dirty { color: #ffb43a; opacity: 1; }
+    #file-state.dirty { color: #E69F00; opacity: 1; }
     /* the component renders its editor into a sibling div, not inside itself */
     strudel-editor { display: none; }
     strudel-editor + div { flex: 1; min-height: 0; overflow: auto; font-size: 16px; }
@@ -36,11 +36,11 @@
     #problems.ok { color: #6f8a1f; }
     #problems .p { cursor: pointer; padding: 3px 0; line-height: 1.4; }
     #problems .p:hover { text-decoration: underline; }
-    #problems .error { color: #ff5a5a; }
-    #problems .warn { color: #ffb43a; }
+    #problems .error { color: #ff7a4a; font-weight: bold; }
+    #problems .warn { color: #F0E442; }
     #problems .fix { color: #aaa; }
-    .err-mark { position: absolute; left: 0; right: 0; pointer-events: none; background: rgba(255, 70, 70, .16); border-left: 3px solid #ff5a5a; z-index: 1; }
-    .err-mark.warn { background: rgba(255, 180, 58, .12); border-left-color: #ffb43a; }
+    .err-mark { position: absolute; left: 0; right: 0; pointer-events: none; background: rgba(213, 94, 0, .22); border-left: 5px solid #D55E00; z-index: 1; }
+    .err-mark.warn { background: rgba(240, 228, 66, .08); border-left: 5px dashed #F0E442; }
     @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
     #problems.shake { animation: shake .2s 2; }
     strudel-editor + div .cm-scroller { font-family: ui-monospace, Menlo, monospace !important; }
@@ -65,7 +65,7 @@
     <aside id="palette">
       <p class="hint">Click to add, or drag into the code.<br>
         <span style="color:#d6ff3a">■ sounds</span> join the stack ·
-        <span style="color:#3ad6ff">■ effects</span> attach to the line your cursor is on</p>
+        <span style="color:#56B4E9">■ effects</span> attach to the line your cursor is on</p>
       <div id="blocks"></div>
       <div id="tip"></div>
     </aside>

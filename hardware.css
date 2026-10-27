@@ -1,4 +1,6 @@
 * { box-sizing: border-box; }
+/* Okabe–Ito colour-blind-safe palette. "On" states also differ in brightness/shape, never hue alone. */
+:root { --orange: #E69F00; --sky: #56B4E9; --green: #009E73; --yellow: #F0E442; --blue: #0072B2; --vermillion: #D55E00; --purple: #CC79A7; }
 body { margin: 0; background: #1b1714 repeating-linear-gradient(90deg, #1d1915 0 3px, #1a1612 3px 7px);
   font: 12px "Helvetica Neue", Arial, sans-serif; color: #ddd; user-select: none; }
 strudel-editor, strudel-editor + div { display: none !important; }
@@ -30,15 +32,15 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .knob label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; text-align: center; line-height: 1.1; }
 .knob .val { font: 9px ui-monospace, monospace; opacity: 0; transition: opacity .2s; height: 10px; }
 .knob:hover .val, .knob.drag .val { opacity: .8; }
-.knob.modded .dial { box-shadow: 0 0 0 2px #ff3a7a, 0 3px 4px rgba(0,0,0,.7); }
+.knob.modded .dial { outline: 2px dashed var(--purple); outline-offset: 3px; }
 
 .hwbtn { font: bold 10px "Helvetica Neue", Arial, sans-serif; letter-spacing: 1px; padding: 6px 9px; border-radius: 3px; border: none; cursor: pointer;
   background: linear-gradient(#4a4a4a, #2c2c2c); color: #eee; box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,.2); text-decoration: none; }
 .hwbtn:active, .hwbtn.on { transform: translateY(1px); box-shadow: 0 1px 0 #000, inset 0 1px 3px rgba(0,0,0,.6); }
-.hwbtn.on { background: linear-gradient(#ff8a2a, #d35a00); color: #000; }
+.hwbtn.on { background: linear-gradient(#f5c04a, var(--orange)); color: #000; }
 .hwbtn.big { font-size: 18px; width: 46px; height: 38px; }
-.hwbtn.green.lit { background: linear-gradient(#5f5, #1a1); color: #000; }
-.hwbtn.red { color: #f66; }
+.hwbtn.green.lit { background: linear-gradient(#7cc8f0, var(--sky)); color: #000; box-shadow: 0 0 12px var(--sky); }
+.hwbtn.red { color: #fff; }
 .hwsel { background: #222; color: #eee; border: 1px solid #000; border-radius: 3px; padding: 4px; font-size: 11px; }
 
 .switch { display: inline-flex; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 0 #000; }
@@ -51,16 +53,16 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .lcd.tiny { min-width: 34px; padding: 4px 6px; text-align: center; }
 .seg-wrap { display: flex; flex-direction: column; align-items: center; }
 .seg-wrap label { font-size: 9px; letter-spacing: 1px; opacity: .6; }
-.seg { font: bold 28px ui-monospace, "Courier New", monospace; color: #ff3a2a; background: #1a0503; padding: 0 10px; border-radius: 3px;
-  text-shadow: 0 0 8px rgba(255,58,42,.8); box-shadow: inset 0 2px 5px #000; letter-spacing: 2px; min-width: 86px; text-align: right; }
-.led { width: 8px; height: 8px; border-radius: 50%; background: #300; box-shadow: inset 0 1px 1px rgba(0,0,0,.6); display: inline-block; }
-.led.on { background: #ff2a1a; box-shadow: 0 0 8px #ff2a1a; }
+.seg { font: bold 28px ui-monospace, "Courier New", monospace; color: var(--orange); background: #1a1003; padding: 0 10px; border-radius: 3px;
+  text-shadow: 0 0 8px rgba(230,159,0,.8); box-shadow: inset 0 2px 5px #000; letter-spacing: 2px; min-width: 86px; text-align: right; }
+.led { width: 8px; height: 8px; border-radius: 50%; background: #2a2a1a; box-shadow: inset 0 1px 1px rgba(0,0,0,.6); display: inline-block; }
+.led.on { background: var(--yellow); box-shadow: 0 0 0 2px #000, 0 0 10px 2px var(--yellow); }
 
 /* ---------- transport ---------- */
 .transport { background: linear-gradient(#2c2c2e, #19191a); display: flex; align-items: center; gap: 14px; padding: 10px 24px; }
 .transport::before, .transport::after { top: 50%; margin-top: -4px; }
 .brand { font: 900 18px Arial; letter-spacing: 3px; color: #eee; }
-.brand span { color: #ff8a2a; } .brand small { font-weight: 400; font-size: 10px; letter-spacing: 2px; opacity: .6; }
+.brand span { color: var(--orange); } .brand small { font-weight: 400; font-size: 10px; letter-spacing: 2px; opacity: .6; }
 .transport .knob label { color: #ccc; }
 
 /* ---------- TB-303 ---------- */
@@ -69,12 +71,14 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .tb303 .knob .dial { background: radial-gradient(circle at 40% 30%, #444, #000 70%); }
 .seq { display: grid; grid-template-columns: repeat(16, 1fr); gap: 5px; margin-top: 4px; }
 .step { background: #2a2a2a; border-radius: 4px; padding: 4px 3px; display: flex; flex-direction: column; gap: 3px; align-items: stretch; cursor: pointer; border: 2px solid transparent; }
-.step.sel { border-color: #ff8a2a; }
+.step.sel { border-color: var(--sky); box-shadow: 0 0 0 2px var(--sky); }
 .step.beat { background: #353535; }
 .step .note { font: bold 12px ui-monospace, monospace; color: #9dff4a; background: #10180c; text-align: center; padding: 4px 0; border-radius: 2px; text-shadow: 0 0 5px rgba(157,255,74,.6); }
-.step.off .note { color: #3a5a20; text-shadow: none; }
+.step.off .note { color: #2a3a20; text-shadow: none; }
+.step.off { opacity: .6; }
 .step .t { font: bold 8px Arial; border: none; border-radius: 2px; padding: 3px 0; background: #444; color: #999; cursor: pointer; letter-spacing: .5px; }
-.step .t.on { background: #ff8a2a; color: #000; }
+.step .t.on { background: var(--orange); color: #000; }
+.step .t.sld.on { background: var(--sky); }
 .step .t.gate.on { background: #e8e2c8; }
 .step .led { align-self: center; }
 
@@ -88,12 +92,15 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .dr-row .knob .val { display: none; }
 .dr-row .knob label { font-size: 8px; }
 .pad { height: 26px; border-radius: 3px; border: none; cursor: pointer; box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,.3); position: relative; }
-.pad.g0 { background: #c8452a; } .pad.g1 { background: #e8862a; } .pad.g2 { background: #e8d02a; } .pad.g3 { background: #e8e6dc; }
-.pad::after { content: ''; position: absolute; top: 5px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.35); }
-.pad.on::after { background: #ff2a1a; box-shadow: 0 0 8px 2px #ff2a1a; }
-.pad.head { outline: 2px solid #fff; outline-offset: 1px; }
+.pad.g0 { background: var(--vermillion); } .pad.g1 { background: var(--orange); } .pad.g2 { background: var(--yellow); } .pad.g3 { background: #e8e6dc; }
+.pad { filter: brightness(.45) saturate(.6); }
+.pad.on { filter: none; }
+.pad::after { content: ''; position: absolute; top: 50%; left: 50%; margin: -5px 0 0 -5px; width: 10px; height: 10px; border-radius: 50%; background: rgba(0,0,0,.35); }
+.pad.on::after { background: #fff; box-shadow: 0 0 0 2px #000, 0 0 8px 2px #fff; }
+.pad.head { outline: 3px solid var(--sky); outline-offset: 1px; }
 .mute { font: bold 9px Arial; padding: 5px 0; }
-.mute.on { background: linear-gradient(#f44, #a00); color: #fff; }
+.mute.on { background: var(--yellow); color: #000; }
+.dr-row.muted .pad, .dr-row.muted .name { opacity: .35; }
 .dr-steps-led { display: grid; grid-template-columns: 110px 62px 62px 40px repeat(16, 1fr); gap: 4px; margin-top: 6px; }
 .dr-steps-led span { text-align: center; font: 9px Arial; opacity: .6; }
 
@@ -102,13 +109,13 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .lfo { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 8px; border-top: 1px solid #2a2a2a; align-items: center; }
 .lfo .scope { width: 100%; height: 44px; background: #051005; border-radius: 3px; box-shadow: inset 0 2px 4px #000; }
 .lfo .knob .dial { background: radial-gradient(circle at 40% 30%, #6af, #124 70%); }
-.lfo:nth-of-type(2) .knob .dial { background: radial-gradient(circle at 40% 30%, #f6a, #412 70%); }
+.lfo:nth-of-type(2) .knob .dial { background: radial-gradient(circle at 40% 30%, var(--orange), #421 70%); }
 .lfo .side { display: flex; flex-direction: column; gap: 6px; }
 .lfo .jack { display: flex; align-items: center; gap: 6px; font-size: 10px; }
 .lfo .jack::before { content: ''; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, #000 35%, #aaa 40%, #555 70%); }
 
 /* ---------- poly synth ---------- */
-.juno { background: linear-gradient(#3a3532, #2a2522); border-top: 4px solid #c84a2a; }
+.juno { background: linear-gradient(#3a3532, #2a2522); border-top: 4px solid var(--vermillion); }
 .juno .knob .dial { background: radial-gradient(circle at 40% 30%, #e86a3a, #5a1a0a 70%); }
 
 /* ---------- fx ---------- */
@@ -119,10 +126,10 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .mixer { background: linear-gradient(#2a2a2a, #161616); }
 .faders { display: flex; gap: 14px; justify-content: center; }
 .fader { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.fader input { writing-mode: vertical-lr; direction: rtl; width: 26px; height: 120px; accent-color: #ff8a2a; cursor: pointer; }
+.fader input { writing-mode: vertical-lr; direction: rtl; width: 26px; height: 120px; accent-color: var(--orange); cursor: pointer; }
 .fader label { font-size: 9px; letter-spacing: 1px; }
 .fader .meter { width: 6px; height: 120px; background: #111; border-radius: 2px; position: relative; overflow: hidden; }
-.fader .meter i { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(#f33, #fd3 30%, #3f3 60%); transition: height .08s; }
+.fader .meter i { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(var(--yellow), var(--sky) 40%, var(--blue)); transition: height .08s; }
 
 /* ---------- keyboard ---------- */
 .keys { background: linear-gradient(#2a2a2c, #151516); }
@@ -131,7 +138,8 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
   display: flex; align-items: flex-end; justify-content: center; font-size: 9px; color: #888; padding-bottom: 6px; }
 .bkey { position: absolute; width: 3.4%; height: 62%; background: linear-gradient(#333, #000); border-radius: 0 0 4px 4px; z-index: 2; cursor: pointer;
   border: 1px solid #000; box-shadow: 0 3px 3px rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center; font-size: 8px; color: #666; padding-bottom: 4px; }
-.wkey.down { background: linear-gradient(#ffd08a, #ff8a2a); }
-.bkey.down { background: linear-gradient(#ff8a2a, #8a3a00); }
-.wkey.held, .bkey.held { box-shadow: inset 0 -6px 0 #9dff4a; }
+.wkey.down { background: linear-gradient(#bfe3f7, var(--sky)); }
+.bkey.down { background: linear-gradient(var(--sky), var(--blue)); }
+.wkey.held, .bkey.held { box-shadow: inset 0 -8px 0 var(--orange); }
+.wkey.held::before, .bkey.held::before { content: '●'; position: absolute; top: 6px; color: var(--orange); font-size: 10px; }
 .switch.inline button { padding: 4px 8px; }

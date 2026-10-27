@@ -148,8 +148,9 @@ Object.assign(window, { P, DG, TG, PG });
 // ---------- code generation ----------
 function gen(live) {
   const num = (x) => +(+x).toFixed(3);
-  const v = (k) => (live ? `signal(() => P("${k}"))` : num(P(k)));
-  const g = (fn, arg) => (live ? `signal(() => ${fn}(${arg ? `"${arg}"` : ''}))` : num(window[fn](arg)));
+  // single quotes: Strudel turns "double-quoted" strings into patterns
+  const v = (k) => (live ? `signal(() => P('${k}'))` : num(P(k)));
+  const g = (fn, arg) => (live ? `signal(() => ${fn}(${arg ? `'${arg}'` : ''}))` : num(window[fn](arg)));
   const layers = [];
 
   for (const [d] of DRUMS) {
@@ -168,7 +169,7 @@ function gen(live) {
     layers.push(`note("${notes}").s("${S.tb.wave}")
     .velocity("${vel}").sustain("${sus}")
     .lpf(${v('tb.cutoff')}).lpq(${v('tb.reso')}).lpenv(${v('tb.envmod')}).lpdecay(${v('tb.decay')})
-    .decay(${live ? 'signal(() => Math.max(.12, P("tb.decay")))' : num(Math.max(0.12, P('tb.decay')))}).shape(${v('tb.drive')})
+    .decay(${live ? "signal(() => Math.max(.12, P('tb.decay')))" : num(Math.max(0.12, P('tb.decay')))}).shape(${v('tb.drive')})
     .delay(${v('fx.tbdly')}).delaytime(${v('fx.time')}).delayfeedback(${v('fx.feedback')}).room(${v('fx.tbrev')})
     .gain(${g('TG')})`);
   }
@@ -339,9 +340,14 @@ $('#dr-clear').onclick = () => { S.dr.rows = drumPreset('Empty'); renderDrums();
 function renderDrums() {
   const grid = $('#dr-grid'); grid.innerHTML = '';
   for (const [d, label] of DRUMS) {
-    const mute = h('button', { className: `hwbtn mute ${S.dr.mute[d] ? 'on' : ''}`, textContent: 'MUTE' });
-    mute.onclick = () => { S.dr.mute[d] = !S.dr.mute[d]; mute.classList.toggle('on'); persist(); };
-    const row = h('div', { className: 'dr-row' }, h('div', { className: 'name', textContent: label }), knob(`dr.${d}.lvl`), knob(`dr.${d}.tune`), mute);
+    const mute = h('button', { className: `hwbtn mute ${S.dr.mute[d] ? 'on' : ''}`, textContent: S.dr.mute[d] ? 'MUTED' : 'MUTE' });
+    mute.onclick = () => {
+      S.dr.mute[d] = !S.dr.mute[d];
+      mute.classList.toggle('on', S.dr.mute[d]); mute.textContent = S.dr.mute[d] ? 'MUTED' : 'MUTE';
+      row.classList.toggle('muted', S.dr.mute[d]);
+      persist(); status(`${label} ${S.dr.mute[d] ? 'muted' : 'on'}`);
+    };
+    const row = h('div', { className: `dr-row ${S.dr.mute[d] ? 'muted' : ''}` }, h('div', { className: 'name', textContent: label }), knob(`dr.${d}.lvl`), knob(`dr.${d}.tune`), mute);
     S.dr.rows[d].forEach((on, i) => {
       const pad = h('button', { className: `pad g${Math.floor(i / 4)} ${on ? 'on' : ''}`, title: `${label} step ${i + 1}` });
       pad.dataset.step = i;
@@ -497,7 +503,7 @@ function frame() {
   scopes.forEach((c, i) => {
     const x = c.getContext('2d'), W = c.width, H = c.height, r = S.v[`lfo${i}.rate`], dep = S.v[`lfo${i}.depth`];
     x.clearRect(0, 0, W, H);
-    x.strokeStyle = i ? '#f6a' : '#6af'; x.lineWidth = 2; x.globalAlpha = 0.3 + 0.7 * dep; x.beginPath();
+    x.strokeStyle = i ? '#E69F00' : '#56B4E9'; x.lineWidth = 2; x.globalAlpha = 0.3 + 0.7 * dep; x.beginPath();
     const span = Math.max(2 / r, 0.5); // show about 2 cycles
     for (let px = 0; px < W; px++) {
       const y = H / 2 - lfoVal(i, t - span + (px / W) * span) * (H / 2 - 4) * Math.max(dep, 0.15);
