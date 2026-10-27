@@ -141,7 +141,7 @@ function P(k) {
 }
 // gains include mixer + mute, so a fader is just another live value
 const DG = (d) => (S.dr.mute[d] ? 0 : P(`dr.${d}.lvl`) * P('mix.drums') * P('mix.master'));
-const TG = () => P('mix.tb') * P('mix.master');
+const TG = () => (S.tb.mute ? 0 : P('mix.tb') * P('mix.master'));
 const PG = () => P('mix.pad') * P('mix.master');
 Object.assign(window, { P, DG, TG, PG });
 
@@ -321,6 +321,12 @@ $('#tb-mutate').onclick = () => {
   }
   renderSeq(); rebuild(); status('303: mutated 3 steps');
 };
+function renderTbMute() {
+  $('#tb-mute').classList.toggle('on', !!S.tb.mute);
+  $('#tb-mute').textContent = S.tb.mute ? 'MUTED' : 'MUTE';
+  $('#tb-seq').classList.toggle('muted', !!S.tb.mute);
+}
+$('#tb-mute').onclick = () => { S.tb.mute = !S.tb.mute; renderTbMute(); persist(); status(`303 ${S.tb.mute ? 'muted' : 'on'}`); };
 $('#tb-clear').onclick = () => { S.tb.steps = blankSteps(); renderSeq(); rebuild(); };
 $('#tb-preset').append(h('option', { textContent: 'PATTERN…', value: '' }), ...Object.keys(PRESETS_303).map((n) => h('option', { textContent: n })));
 $('#tb-preset').onchange = (e) => { if (!e.target.value) return; S.tb.steps = parse303(PRESETS_303[e.target.value]); e.target.value = ''; renderSeq(); rebuild(); };
@@ -480,6 +486,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.repeat) return;
   if (e.code === 'Space') { e.preventDefault(); playing ? stop() : play(); return; }
   if (e.key === 'z') return $('#kb-down').click();
+  if (e.key === 'm') return $('#tb-mute').click();
   if (e.key === 'x') return $('#kb-up').click();
   const i = KEYMAP.indexOf(e.key.toLowerCase());
   if (i < 0) return;
@@ -536,7 +543,7 @@ function frame() {
 }
 
 // ---------- boot ----------
-renderSeq(); renderDrums(); renderKbTarget(); renderKeyboard(); markModded();
+renderSeq(); renderTbMute(); renderDrums(); renderKbTarget(); renderKeyboard(); markModded();
 document.addEventListener('pointerup', markModded);
 requestAnimationFrame(frame);
 (async () => { while (!ed()) await new Promise((r) => setTimeout(r, 50)); ed().setCode(gen(true)); })();

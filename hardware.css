@@ -101,6 +101,7 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .mute { font: bold 9px Arial; padding: 5px 0; }
 .mute.on { background: var(--yellow); color: #000; }
 .dr-row.muted .pad, .dr-row.muted .name { opacity: .35; }
+.seq.muted { opacity: .35; }
 .dr-steps-led { display: grid; grid-template-columns: 110px 62px 62px 40px repeat(16, 1fr); gap: 4px; margin-top: 6px; }
 .dr-steps-led span { text-align: center; font: 9px Arial; opacity: .6; }
 
@@ -143,3 +144,4 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .wkey.held, .bkey.held { box-shadow: inset 0 -8px 0 var(--orange); }
 .wkey.held::before, .bkey.held::before { content: '●'; position: absolute; top: 6px; color: var(--orange); font-size: 10px; }
 .switch.inline button { padding: 4px 8px; }
+#tb-mute { padding: 6px 12px; min-width: 64px; }
