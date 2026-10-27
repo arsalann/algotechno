@@ -18,6 +18,7 @@
 | stereo widen | `.jux(rev)` |
 | dub delay | `.delay(.4).delaytime(3/16).delayfeedback(.5)` |
 | drum machines | `.bank("RolandTR909")`, `"RolandTR808"`, `"RolandTR707"` |
+| master volume | `stack(...).postgain(.5)` — keep the mix under clipping |
 | mute a layer | prefix with `_` e.g. `_$:` or comment it out |
 
 Keys: **Ctrl/Cmd+Enter** evaluate · **Ctrl+.** stop.

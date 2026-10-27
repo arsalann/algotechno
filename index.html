@@ -92,12 +92,13 @@
 
     const say = (msg) => (status.textContent = msg);
     const play = () => {
-      // don't send broken code to Strudel — the old version keeps playing instead
+      // don't send broken code to Strudel — the old version keeps playing instead.
+      // (a runtime error from the last play shouldn't block retrying, so clear it first)
+      runtimeProblem = null;
       if (validate().some((p) => p.level === 'error')) {
         problemsEl.classList.remove('shake'); void problemsEl.offsetWidth; problemsEl.classList.add('shake');
         return say('fix the red error first — the previous version keeps playing');
       }
-      runtimeProblem = null;
       ed().evaluate(); playing = true; say('playing ' + new Date().toLocaleTimeString());
     };
     const stop = () => { ed().stop(); playing = false; say('stopped'); };
@@ -156,12 +157,36 @@
       view().focus();
     }
 
+    // index where a real // comment starts on a line (not one inside a "string" like a URL)
+    function commentStart(text) {
+      let quote = null;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (quote) { if (c === '\\') i++; else if (c === quote) quote = null; }
+        else if (c === '"' || c === "'" || c === '`') quote = c;
+        else if (c === '/' && text[i + 1] === '/') return i;
+      }
+      return text.length;
+    }
+
     function addLayer(code) {
-      const doc = view().state.doc.toString();
-      // put the new layer just before the closing ")" of the last stack(...)
-      const close = doc.search(/^\)\s*$(?![\s\S]*^\))/m);
-      if (close === -1) return replaceRange(view().state.selection.main.head, view().state.selection.main.head, '\n' + code + '\n');
-      replaceRange(close, close, '  ' + code + '\n');
+      const { state } = view();
+      const doc = state.doc.toString();
+      // put the new layer just before the closing ")" of the last stack(...) — that line may
+      // carry more, e.g. ").postgain(.6)"
+      const close = doc.search(/^\)(?![\s\S]*^\))/m);
+      if (close === -1) return replaceRange(state.selection.main.head, state.selection.main.head, '\n' + code + '\n');
+      // the layer above needs a trailing comma, or the new one would be a syntax error
+      const changes = [{ from: close, insert: '  ' + code + '\n' }];
+      for (let n = state.doc.lineAt(close).number - 1; n >= 1; n--) {
+        const line = state.doc.line(n);
+        const body = line.text.slice(0, commentStart(line.text)).trimEnd();
+        if (!body) continue;
+        if (!/[,(]$/.test(body)) changes.push({ from: line.from + body.length, insert: ',' });
+        break;
+      }
+      view().dispatch({ changes, selection: { anchor: close + 3 + code.length + (changes.length > 1 ? 1 : 0) } });
+      view().focus();
     }
 
     function addModifier(code) {
@@ -173,8 +198,8 @@
         return;
       }
       // insert before a trailing comma / comment so the code stays valid
-      const m = text.match(/^(.*?)(\s*,?\s*(\/\/.*)?)$/);
-      const at = line.from + m[1].length;
+      const end = commentStart(text);
+      const at = line.from + text.slice(0, end).replace(/\s*,?\s*$/, '').length;
       replaceRange(at, at, code);
     }
 
@@ -305,7 +330,8 @@
       const tokens = [];
       try { for (const t of acorn.tokenizer(code, { ecmaVersion: 'latest' })) tokens.push(t); } catch { return; }
       for (const t of tokens) {
-        if (t.type.label !== 'string' && t.type.label !== 'template') continue;
+        // only "double-quoted" strings are mini-notation; 'single' and `template` strings are plain text
+        if (t.type.label !== 'string' || code[t.start] !== '"') continue;
         const str = String(t.value ?? '');
         const stack = [];
         for (let i = 0; i < str.length; i++) {
@@ -466,6 +492,7 @@
         history.replaceState(null, '', '/');
         ed().setCode(imported);
         currentFile = null; savedCode = '';
+        picker.value = ''; // not one of the files until you save it
         say('imported from hardware mode — 💾 save as… to keep it');
       } else if (files.length) load(files[0]);
     })();
@@ -518,12 +545,12 @@
       if (!document.getElementById('follow').checked) return;
       const { file, code } = JSON.parse(e.data);
       if (code === view().state.doc.toString()) return;
-      if (isDirty() && file === currentFile && !confirm(file + ' changed on disk. Replace your unsaved browser edits?')) return;
+      if (isDirty() && !confirm(`${file} changed on disk. Load it and lose your unsaved edits${currentFile && currentFile !== file ? ' to ' + currentFile : ''}?`)) return;
       currentFile = file; savedCode = code;
       if (![...picker.options].some((o) => o.value === file)) picker.add(new Option(file));
       picker.value = file;
       ed().setCode(code);
-      play();
+      refresh(); // only restarts if the music was already playing
       say('hot-swapped ' + file + ' @ ' + new Date().toLocaleTimeString());
     };
   </script>

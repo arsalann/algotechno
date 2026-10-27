@@ -14,8 +14,8 @@
     <!-- ===== top rail: transport ===== -->
     <section class="unit transport">
       <div class="brand">ALGO<span>TECHNO</span> <small>hardware</small></div>
-      <button id="play" class="hwbtn big green" title="space">▶</button>
-      <button id="stop" class="hwbtn big red" title="space">■</button>
+      <button id="play" class="hwbtn big green" title="play (space)" aria-label="play">▶</button>
+      <button id="stop" class="hwbtn big red" title="stop (space)" aria-label="stop">■</button>
       <div class="seg-wrap"><div class="seg" id="bpm-display">132</div><label>BPM</label></div>
       <div id="bpm-knob"></div>
       <div id="swing-knob"></div>
@@ -70,9 +70,9 @@
         <div class="row"><div class="row knobs" id="pad-knobs"></div><div class="spacer"></div><div class="strip" id="pad-strip"></div></div>
         <div class="row">
           <div class="patch" title="the sound the keys play — ◀ ▶ to browse">
-            <button class="hwbtn" id="snd-prev">◀</button>
+            <button class="hwbtn" id="snd-prev" aria-label="previous sound">◀</button>
             <div class="lcd patch-name" id="snd-name"></div>
-            <button class="hwbtn" id="snd-next">▶</button>
+            <button class="hwbtn" id="snd-next" aria-label="next sound">▶</button>
             <select class="hwsel" id="snd-list"></select>
           </div>
         </div>
@@ -95,7 +95,7 @@
     <section class="unit keys">
       <header><b>KEYS</b> <span class="kb-label">the keys play:</span>
         <span class="switch inline" id="kb-target"></span>
-        <button class="hwbtn" id="kb-down">OCT −</button><span class="lcd tiny" id="kb-oct">C3</span><button class="hwbtn" id="kb-up">OCT +</button>
+        <button class="hwbtn" id="kb-down" aria-label="octave down">OCT −</button><span class="lcd tiny" id="kb-oct">C3</span><button class="hwbtn" id="kb-up" aria-label="octave up">OCT +</button>
       </header>
       <div class="explain" id="kb-hint"></div>
       <div id="keyboard"></div>

@@ -27,4 +27,4 @@ stack(
   clap,
   acidA,
   acidB,
-)
+).postgain(.5) // master volume: keeps the mix from clipping

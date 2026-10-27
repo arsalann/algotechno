@@ -51,6 +51,12 @@ Everything is saved in your browser automatically.
 
 See [CHEATSHEET.md](CHEATSHEET.md).
 
+## Notes
+
+- The server only listens on `127.0.0.1` and only accepts saves from its own page, so other websites and other devices on your network can't write to `patterns/`.
+- Every pattern ends with `.postgain(.5)` (and hardware mode's MASTER defaults to 50%) so the full mix doesn't clip.
+- Hardware knobs can be focused with Tab and turned with the arrow keys.
+
 ## Recording
 
 Route browser audio with BlackHole/Loopback into your DAW, or use Strudel's built-in export at strudel.cc.

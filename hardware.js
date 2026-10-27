@@ -11,7 +11,7 @@ const h = (tag, props = {}, ...kids) => { const e = Object.assign(document.creat
 
 // ---------- notes ----------
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const noteName = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+const noteName = (m) => NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 const fromName = (s) => {
   const m = /^([a-g])(#|b)?(-?\d)$/i.exec(s);
   return 12 * (+m[3] + 1) + { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[m[1].toLowerCase()] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
@@ -50,7 +50,7 @@ const META = {
   'mix.drums': { label: 'VOLUME', min: 0, max: 1.2, def: 0.9 },
   'mix.tb': { label: 'VOLUME', min: 0, max: 1.2, def: 0.75 },
   'mix.pad': { label: 'VOLUME', min: 0, max: 1.2, def: 0.5 },
-  'mix.master': { label: 'MASTER', min: 0, max: 1.2, def: 0.9 },
+  'mix.master': { label: 'MASTER', min: 0, max: 1.2, def: 0.5 }, // 0.5 keeps the full rig under clipping
 };
 for (const [d] of DRUMS) {
   META[`dr.${d}.lvl`] = { label: 'LEVEL', min: 0, max: 1.5, def: ['hh', 'oh', 'rd', 'cr'].includes(d) ? 0.55 : 1 };
@@ -117,8 +117,30 @@ function drumPreset(name) {
 // saved state from last session, merged over defaults
 let S;
 try { S = JSON.parse(localStorage.getItem('algotechno:hw')); } catch {}
-if (!S || !S.v) S = DEFAULT();
-S.v = { ...DEFAULT().v, ...S.v };
+if (!S || typeof S !== 'object') S = {};
+{
+  // merge every section over the defaults, so settings saved by an older version never crash the page
+  const D = DEFAULT(), obj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+  S = { ver: S.ver, v: { ...D.v, ...obj(S.v) }, tb: { ...D.tb, ...obj(S.tb) }, dr: { ...D.dr, ...obj(S.dr) }, pad: { ...D.pad, ...obj(S.pad) },
+    lfo: [0, 1].map((i) => ({ ...D.lfo[i], ...obj(S.lfo?.[i]) })), kb: { ...D.kb, ...obj(S.kb) } };
+  for (const k in META) {
+    const m = META[k], x = S.v[k];
+    if (typeof x !== 'number' || !isFinite(x)) S.v[k] = m.def;
+    else if (m.values && !m.values.includes(x)) S.v[k] = m.values.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a));
+    else if (!m.values) S.v[k] = Math.min(m.max, Math.max(m.min, x));
+  }
+  const okSteps = Array.isArray(S.tb.steps) && S.tb.steps.length === 16 && S.tb.steps.every((st) => st && Number.isFinite(st.n));
+  if (!okSteps) S.tb.steps = D.tb.steps;
+  S.dr.rows = obj(S.dr.rows); S.dr.mute = obj(S.dr.mute);
+  for (const [d] of DRUMS) if (!Array.isArray(S.dr.rows[d]) || S.dr.rows[d].length !== 16) S.dr.rows[d] = Array(16).fill(false);
+  if (!Array.isArray(S.pad.held)) S.pad.held = [];
+  if (!['single', 'minor', 'major', 'min7', 'maj7', 'min9', 'sus4', 'fifths'].includes(S.pad.shape)) S.pad.shape = 'single';
+  if (!['pad', 'bass', 'drums', 'transpose', 'step'].includes(S.kb.target)) S.kb.target = 'pad';
+  if (!(S.kb.oct >= 1 && S.kb.oct <= 6)) S.kb.oct = 3;
+  // v2: master used to default to 0.9, which clipped — bring old sessions down once
+  if (!(S.ver >= 2)) { S.v['mix.master'] = Math.min(S.v['mix.master'], META['mix.master'].def); S.ver = 2; }
+  S.lfo.forEach((l) => { if (!['sine', 'tri', 'saw', 'square', 's&h'].includes(l.shape)) l.shape = 'sine'; });
+}
 const persist = () => localStorage.setItem('algotechno:hw', JSON.stringify(S));
 
 // ---------- live values (+ LFO modulation) ----------
@@ -129,7 +151,7 @@ const lfoVal = (i, t) => {
     case 'tri': return 1 - 4 * Math.abs(ph - 0.5);
     case 'saw': return 2 * ph - 1;
     case 'square': return ph < 0.5 ? 1 : -1;
-    case 's&h': { const k = Math.floor(t * r); return (Math.sin(k * 12.9898 + i * 78.233) * 43758.5453 % 1) * 2 - 1 || 0; }
+    case 's&h': { const k = Math.floor(t * r), x = Math.sin(k * 12.9898 + i * 78.233) * 43758.5453; return (x - Math.floor(x)) * 2 - 1; }
   }
   return 0;
 };
@@ -187,7 +209,7 @@ function gen(live) {
     .gain(${g('PG')})`);
   }
 
-  const swing = S.v.swing > 0.005 ? `.swingBy(${num(S.v.swing)}, 4)` : '';
+  const swing = S.v.swing > 0.005 ? `.swingBy(${num(S.v.swing)}, 8)` : ''; // 8 = swing the off-beat 16ths
   const header = live ? '' : '// exported from hardware mode — LFO movement is frozen at the moment of export\n';
   return `${header}setcps(${S.v.bpm}/60/4)\n\nstack(\n  ${layers.join(',\n  ') || 'silence'},\n)${swing}\n`;
 }
@@ -258,6 +280,7 @@ function knob(k, { small = false } = {}) {
   const paint = () => {
     dial.style.transform = `rotate(${-135 + 270 * norm(k, S.v[k])}deg)`;
     val.textContent = fmt(k, S.v[k]);
+    el.setAttribute('aria-valuetext', fmt(k, S.v[k]));
   };
   const set = (x) => {
     S.v[k] = x; paint();
@@ -266,6 +289,14 @@ function knob(k, { small = false } = {}) {
     m.struct ? rebuild() : persist();
   };
   if (!canMove(k)) el.classList.add('nomod');
+  Object.assign(el, { tabIndex: 0 });
+  el.setAttribute('role', 'slider'); el.setAttribute('aria-label', m.label.replace('-', ''));
+  el.addEventListener('keydown', (e) => {
+    const d = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    set(denorm(k, norm(k, S.v[k]) + d * (m.values ? 1 / (m.values.length - 1) : e.shiftKey ? 0.005 : 0.02)));
+  });
   el.addEventListener('pointerdown', (e) => {
     if (picking !== null) return pickTarget(k, e);
     el.setPointerCapture(e.pointerId); el.classList.add('drag');
@@ -327,7 +358,7 @@ function renderSeq() {
       renderSeq();
     };
     el.addEventListener('wheel', (e) => {
-      e.preventDefault(); s.n += e.deltaY < 0 ? 1 : -1; s.gate = true;
+      e.preventDefault(); s.n = Math.min(84, Math.max(12, s.n + (e.deltaY < 0 ? 1 : -1))); s.gate = true;
       sound([s.n + S.tb.transpose], 'tb'); renderSeq(); rebuild();
     }, { passive: false });
     seq.append(el);
@@ -353,7 +384,7 @@ function renderTbMute() {
   $('#tb-seq').classList.toggle('muted', !!S.tb.mute);
 }
 $('#tb-mute').onclick = () => { S.tb.mute = !S.tb.mute; renderTbMute(); persist(); status(`303 ${S.tb.mute ? 'muted' : 'on'}`); };
-$('#tb-clear').onclick = () => { S.tb.steps = blankSteps(); renderSeq(); rebuild(); };
+$('#tb-clear').onclick = () => { S.tb.steps = blankSteps(); renderSeq(); rebuild(); status('303: cleared'); };
 $('#tb-preset').append(h('option', { textContent: 'PATTERN…', value: '' }), ...Object.keys(PRESETS_303).map((n) => h('option', { textContent: n })));
 $('#tb-preset').onchange = (e) => { if (!e.target.value) return; S.tb.steps = parse303(PRESETS_303[e.target.value]); e.target.value = ''; renderSeq(); rebuild(); };
 
@@ -400,7 +431,7 @@ function renderDrums() {
 const modLabel = (t) => {
   const [unit, a] = t.split('.');
   if (unit === 'dr') return `${DRUMS.find(([d]) => d === a)[1]} ${META[t].label}`;
-  return `${{ tb: '303', pad: 'PAD', fx: 'ECHO/REVERB', mix: '' }[unit]} ${META[t].label.replace('-', '')}`.trim();
+  return `${{ tb: '303', pad: 'PAD', fx: 'ECHO/REVERB' }[unit] ?? { 'mix.tb': '303', 'mix.drums': 'DRUMS', 'mix.pad': 'PAD', 'mix.master': '' }[t]} ${META[t].label.replace('-', '')}`.trim();
 };
 const SHAPES = [['sine', '∿ smooth'], ['tri', '△ even'], ['saw', '◢ ramp'], ['square', '⊓ on/off'], ['s&h', '⁂ random']];
 const scopes = [], targetEls = [];
@@ -434,7 +465,7 @@ function renderMovers() {
     stopPicking(); picking = i; pick.classList.add('on'); document.body.classList.add('picking');
     status('click any knob to make it move… (Esc to cancel)');
   };
-  const clear = h('button', { className: 'hwbtn', textContent: '✕', title: 'stop moving' });
+  const clear = h('button', { className: 'hwbtn', textContent: '✕', title: 'stop moving', ariaLabel: `stop mover ${i + 1}` });
   clear.onclick = () => { S.lfo[i].dest = 'none'; persist(); renderMovers(); markModded(); };
   const target = h('div', { className: 'target' }, `MOVER ${i + 1} moves:`, h('b'), pick, clear);
   targetEls.push(target);
@@ -531,8 +562,8 @@ function renderKeyboard() {
     const k = h('div', { className: black ? 'bkey' : 'wkey', textContent: label });
     if (S.kb.target === 'drums') k.append(h('span', { className: 'dname', textContent: DRUMS[i % DRUMS.length][0].toUpperCase() }));
     k.dataset.m = m;
-    k.onpointerdown = (e) => { e.preventDefault(); press(m); k.classList.add('down'); };
-    k.onpointerup = k.onpointerleave = () => { k.classList.remove('down'); release(m); };
+    k.onpointerdown = (e) => { e.preventDefault(); pressed.set('ptr' + m, { m, notes: press(m) }); k.classList.add('down'); };
+    k.onpointerup = k.onpointerleave = () => { k.classList.remove('down'); const p = pressed.get('ptr' + m); if (p) { pressed.delete('ptr' + m); release(p.notes); } };
     if (black) { k.style.left = `calc(${(white / whites) * 100}% - 1.7%)`; kb.append(k); }
     else { kb.append(k); white++; }
     if (white >= whites) break;
@@ -541,7 +572,8 @@ function renderKeyboard() {
 }
 let heldNow = new Set();
 function press(m) {
-  if (S.kb.target === 'step' && selStep !== null) {
+  if (S.kb.target === 'step' && selStep === null) { status('click a 303 step’s note display first, then play keys'); return []; }
+  if (S.kb.target === 'step') {
     Object.assign(S.tb.steps[selStep], { n: m - 12, gate: true });
     sound([m - 12 + S.tb.transpose], 'tb');
     selStep = (selStep + 1) % 16; // auto-advance like real step-write
@@ -552,7 +584,7 @@ function press(m) {
   if (S.kb.target === 'bass') { sound([m - 12 + S.tb.transpose], 'tb'); status(`303 ${noteName(m - 12)}`); return; }
   if (S.kb.target === 'drums') {
     const [d, label] = DRUMS[(m - 12 * (S.kb.oct + 1)) % DRUMS.length];
-    ensureAudio().then(() => superdough({ s: d, bank: S.dr.kit, gain: DG(d) || 0.8, speed: P(`dr.${d}.tune`) }, getAudioContext().currentTime + 0.01, 0.3));
+    ensureAudio().then(() => superdough({ s: d, bank: S.dr.kit, gain: DG(d), speed: P(`dr.${d}.tune`) }, getAudioContext().currentTime + 0.01, 0.3));
     status(`🥁 ${label}`);
     return;
   }
@@ -572,30 +604,33 @@ function press(m) {
     renderHeld(); rebuild();
   }
   status(`PAD ${notes.map(noteName).join(' ')}`);
+  return S.pad.latch ? notes : [];
 }
-function release(m) { CHORD_SHAPES[S.pad.shape].forEach((x) => heldNow.delete(m + x)); }
+// release exactly the notes a key press added (even if octave/chord shape changed meanwhile)
+function release(notes) { (notes || []).forEach((n) => heldNow.delete(n)); }
 $('#kb-down').onclick = () => { S.kb.oct = Math.max(1, S.kb.oct - 1); renderKeyboard(); persist(); };
 $('#kb-up').onclick = () => { S.kb.oct = Math.min(6, S.kb.oct + 1); renderKeyboard(); persist(); };
-const downKeys = new Set();
+const pressed = new Map(); // key code / pointer → { m, notes } for clean releases
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.repeat) return;
-  if (e.code === 'Space') { e.preventDefault(); playing ? stop() : play(); return; }
-  if (e.key === 'Escape' && picking !== null) return stopPicking();
-  if (e.key === 'z') return $('#kb-down').click();
-  if (e.key === 'm') return $('#tb-mute').click();
-  if (e.key === 'x') return $('#kb-up').click();
-  const i = KEYMAP.indexOf(e.key.toLowerCase());
+  if (e.target.matches('select, textarea, [contenteditable], input:not([type=range])') || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  if (e.target.matches('.knob, input[type=range]') && e.key.startsWith('Arrow')) return; // the knob/fader uses arrows
+  const key = e.key.toLowerCase();
+  if (e.code === 'Space') { e.preventDefault(); e.target.blur?.(); playing ? stop() : play(); return; }
+  if (key === 'escape' && picking !== null) return stopPicking();
+  if (key === 'z') return $('#kb-down').click();
+  if (key === 'm') return $('#tb-mute').click();
+  if (key === 'x') return $('#kb-up').click();
+  const i = KEYMAP.indexOf(key);
   if (i < 0) return;
   const m = 12 * (S.kb.oct + 1) + i;
-  downKeys.add(m); press(m);
+  pressed.set(e.code, { m, notes: press(m) });
   document.querySelector(`#keyboard [data-m="${m}"]`)?.classList.add('down');
 });
 window.addEventListener('keyup', (e) => {
-  const i = KEYMAP.indexOf(e.key.toLowerCase());
-  if (i < 0) return;
-  const m = 12 * (S.kb.oct + 1) + i;
-  downKeys.delete(m); release(m);
-  document.querySelector(`#keyboard [data-m="${m}"]`)?.classList.remove('down');
+  const p = pressed.get(e.code);
+  if (!p) return;
+  pressed.delete(e.code); release(p.notes);
+  document.querySelector(`#keyboard [data-m="${p.m}"]`)?.classList.remove('down');
 });
 
 // ---------- animation: playhead LEDs, scopes, mod indicators, meters ----------
@@ -664,7 +699,8 @@ requestAnimationFrame(frame);
 const DRUM_NAMES = { bd: 'bd', sd: 'sd', lt: 'lt', mt: 'lt', ht: 'ht', rim: 'rim', cp: 'cp', hh: 'hh', oh: 'oh', cr: 'cr', rd: 'rd' };
 const toMidi = (n) => {
   if (typeof n === 'number') return Math.round(n);
-  const m = /^([a-g])(#|s|b)?(-?\d)?$/i.exec(String(n));
+  if (/^-?\d+(\.\d+)?$/.test(String(n))) return Math.round(+n); // note("60")
+  const m = /^([a-g])(#|s|b)?(-?\d+)?$/i.exec(String(n));
   if (!m) return null;
   return 12 * (+(m[3] ?? 3) + 1) + { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[m[1].toLowerCase()] + (m[2] === 'b' ? -1 : m[2] ? 1 : 0);
 };
@@ -680,23 +716,36 @@ async function importCode(code, file) {
   const cps = ed().repl.scheduler.cps;
   if (cps) S.v.bpm = Math.round(Math.min(META.bpm.max, Math.max(META.bpm.min, cps * 240)));
 
-  const cycles = [0, 1, 2, 3].map((c) => pat.queryArc(c, c + 1).filter((h) => h.hasOnset()).map((h) => ({ step: Math.round((h.whole.begin - c) * 16) % 16, v: h.value })));
+  const cycles = [0, 1, 2, 3, 4, 5, 6, 7].map((c) => {
+    const hs = pat.queryArc(c, c + 1).filter((h) => h.hasOnset()).map((h) => ({ step: Math.min(15, Math.floor((h.whole.begin - c) * 16 + 1e-6)), v: h.value }));
+    // .jux() adds a hard-right copy (pan 1) of a sound that also plays hard-left (pan 0): keep one side
+    const juxed = new Set(hs.filter((h) => h.v.pan === 0).map((h) => h.v.s));
+    return hs.filter((h) => !(h.v.pan === 1 && juxed.has(h.v.s)));
+  });
   const isDrum = (v) => typeof v.s === 'string' && DRUM_NAMES[v.s] && v.note == null;
   // the 303 takes ONE synth line: the saw/square sound with the lowest notes
   const all = cycles.flat().map((h) => h.v);
-  const bassCands = all.filter((v) => ['sawtooth', 'square'].includes(v.s) && v.note != null && toMidi(v.note) < 60);
+  const bassCands = all.filter((v) => ['sawtooth', 'square'].includes(v.s) && v.note != null && toMidi(v.note) != null && toMidi(v.note) < 60);
   const avgNote = (sn) => { const ns = bassCands.filter((v) => v.s === sn).map((v) => toMidi(v.note)); return ns.reduce((a, b) => a + b, 0) / ns.length; };
   const bassSound = [...new Set(bassCands.map((v) => v.s))].sort((a, b) => avgNote(a) - avgNote(b))[0];
-  const isBass = (v) => v.s === bassSound && v.note != null && toMidi(v.note) < 60;
+  const isBass = (v) => v.s === bassSound && v.note != null && toMidi(v.note) != null && toMidi(v.note) < 60;
   // the pad takes real chords only (2+ notes at once); single notes / sub bass are skipped
-  const isPad = (v) => v.note != null && !isBass(v) && !isDrum(v) && toMidi(v.note) >= 36;
+  const isPad = (v) => v.note != null && !isBass(v) && !isDrum(v) && toMidi(v.note) != null && toMidi(v.note) >= 36;
 
   // start from empty machines, so nothing from the previous session leaks in
   S.dr.rows = drumPreset('Empty'); S.dr.mute = {};
   S.tb.steps = blankSteps(); S.tb.transpose = 0; S.v['tb.tune'] = 0; S.tb.mute = false;
-  S.pad.held = []; S.pad.latch = false;
+  S.pad.held = []; S.pad.latch = false; S.pad.wave = DEFAULT().pad.wave;
+  S.lfo = DEFAULT().lfo; S.v['lfo0.depth'] = META['lfo0.depth'].def; S.v['lfo1.depth'] = META['lfo1.depth'].def;
   // use the first bar in which each machine has something to play (handles intros / masks)
-  const firstWith = (fn) => cycles.find((c) => c.some((h) => fn(h.v))) ?? [];
+  // use each machine's most typical bar, so a fill (.every(4, …)) or an intro doesn't win
+  const firstWith = (fn) => {
+    const bars = cycles.map((c) => c.filter((h) => fn(h.v))).filter((c) => c.length);
+    const sig = (c) => c.map((h) => `${h.step}:${h.v.s}:${h.v.note}`).sort().join('|');
+    const count = new Map(bars.map((c) => [sig(c), 0]));
+    bars.forEach((c) => count.set(sig(c), count.get(sig(c)) + 1));
+    return bars.sort((a, b) => count.get(sig(b)) - count.get(sig(a)))[0] ?? [];
+  };
   const found = [], ignored = new Set();
 
   const drums = firstWith(isDrum);
@@ -706,7 +755,7 @@ async function importCode(code, file) {
       if (!isDrum(v)) continue;
       const d = DRUM_NAMES[v.s];
       S.dr.rows[d][step] = true;
-      if (v.bank) S.dr.kit = KITS.find((k) => k.toLowerCase() === String(v.bank).toLowerCase()) || S.dr.kit;
+      if (v.bank) { const b = String(v.bank).toLowerCase(); S.dr.kit = KITS.find((k) => [b, 'roland' + b].includes(k.toLowerCase())) || S.dr.kit; }
       if (typeof v.gain === 'number') gains[d] = Math.max(gains[d] ?? 0, v.gain);
     }
     for (const d in gains) S.v[`dr.${d}.lvl`] = clamp(`dr.${d}.lvl`, gains[d]);
