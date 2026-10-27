@@ -33,10 +33,11 @@ Open **http://localhost:4321/hardware.html** (or the 🎛 button in the editor) 
 
 - **TB-303** — 16-step bass sequencer with accent/slide, cutoff/resonance/env mod/decay/accent/drive knobs, saw/square, random/mutate/presets
 - **TR-909** — 10-voice step grid with per-voice level/tune/mute, kit switch (909/808/707/606/Linn/DMX/…), pattern presets
-- **MOD** — two LFOs (sine/tri/saw/square/S&H) you patch onto any knob; patched knobs wobble to show it
-- **POLY-6** — pad synth played from the keyboard; HOLD loops a chord into the track
-- **SPACE** — delay + reverb with per-instrument sends · **MIX** — channel faders with meters
-- **KEYS** — on-screen + computer keyboard (`A W S E D F T G Y H U J K`, `Z`/`X` octave) to play the pad, transpose the 303 or step-write notes. Space = play/stop.
+- **Volume / echo / reverb** sit on each instrument; master volume is in the top bar
+- **AUTO-MOVE** — click "🎯 pick a knob", then any knob: it sweeps by itself (SPEED, AMOUNT, shape)
+- **CHORD PAD** — soft synth played from the keys; pick a chord shape, HOLD loops the chord in the track
+- **ECHO & REVERB** — shared echo speed/repeats and reverb size
+- **KEYS** — on-screen + computer keyboard (`A W S E D F T G Y H U J K`, `Z`/`X` octave). Choose what they play: the chord pad, the 303's key, or 303 step notes. Space = play/stop.
 - **</> to code** turns the current setup into Strudel code in the editor so you can keep going there.
 
 Everything is saved in your browser automatically.

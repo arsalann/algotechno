@@ -31,23 +31,23 @@ const META = {
   'tb.decay': { label: 'DECAY', min: 0.04, max: 1, def: 0.2, exp: true, fmt: (v) => Math.round(v * 1000) + ' ms' },
   'tb.accent': { label: 'ACCENT', min: 0, max: 1, def: 0.6, struct: true },
   'tb.drive': { label: 'DRIVE', min: 0, max: 0.95, def: 0.3 },
-  'pad.cutoff': { label: 'VCF FREQ', min: 200, max: 8000, def: 1800, exp: true, fmt: (v) => Math.round(v) + ' Hz' },
-  'pad.reso': { label: 'VCF RES', min: 0, max: 20, def: 2 },
+  'pad.cutoff': { label: 'BRIGHT-NESS', min: 200, max: 8000, def: 1800, exp: true, fmt: (v) => Math.round(v) + ' Hz' },
+  'pad.reso': { label: 'RESO-NANCE', min: 0, max: 20, def: 2 },
   'pad.attack': { label: 'ATTACK', min: 0.005, max: 2, def: 0.15, exp: true, fmt: (v) => v.toFixed(2) + ' s' },
   'pad.release': { label: 'RELEASE', min: 0.05, max: 4, def: 1, exp: true, fmt: (v) => v.toFixed(2) + ' s' },
   'pad.detune': { label: 'DETUNE', min: 0, max: 1, def: 0.4 },
-  'fx.time': { label: 'DELAY TIME', values: [1 / 16, 1 / 8, 3 / 16, 1 / 4, 3 / 8, 1 / 2], def: 3 / 16,
+  'fx.time': { label: 'ECHO SPEED', values: [1 / 16, 1 / 8, 3 / 16, 1 / 4, 3 / 8, 1 / 2], def: 3 / 16,
     fmt: (v) => ({ 0.0625: '1/16', 0.125: '1/8', 0.1875: '3/16', 0.25: '1/4', 0.375: '3/8', 0.5: '1/2' })[v] },
-  'fx.feedback': { label: 'FEED BACK', min: 0, max: 0.9, def: 0.45 },
-  'fx.size': { label: 'ROOM SIZE', min: 0.5, max: 10, def: 4, exp: true },
-  'fx.tbdly': { label: '303 → DLY', min: 0, max: 1, def: 0.2 },
-  'fx.tbrev': { label: '303 → REV', min: 0, max: 1, def: 0.1 },
-  'fx.paddly': { label: 'PAD → DLY', min: 0, max: 1, def: 0.3 },
-  'fx.padrev': { label: 'PAD → REV', min: 0, max: 1, def: 0.6 },
-  'fx.drrev': { label: 'DRUM → REV', min: 0, max: 1, def: 0.1 },
-  'mix.drums': { label: 'DRUMS', min: 0, max: 1.2, def: 0.9 },
-  'mix.tb': { label: '303', min: 0, max: 1.2, def: 0.75 },
-  'mix.pad': { label: 'PAD', min: 0, max: 1.2, def: 0.5 },
+  'fx.feedback': { label: 'ECHO REPEATS', min: 0, max: 0.9, def: 0.45 },
+  'fx.size': { label: 'REVERB SIZE', min: 0.5, max: 10, def: 4, exp: true },
+  'fx.tbdly': { label: 'ECHO', min: 0, max: 1, def: 0.2 },
+  'fx.tbrev': { label: 'REVERB', min: 0, max: 1, def: 0.1 },
+  'fx.paddly': { label: 'ECHO', min: 0, max: 1, def: 0.3 },
+  'fx.padrev': { label: 'REVERB', min: 0, max: 1, def: 0.6 },
+  'fx.drrev': { label: 'REVERB', min: 0, max: 1, def: 0.1 },
+  'mix.drums': { label: 'VOLUME', min: 0, max: 1.2, def: 0.9 },
+  'mix.tb': { label: 'VOLUME', min: 0, max: 1.2, def: 0.75 },
+  'mix.pad': { label: 'VOLUME', min: 0, max: 1.2, def: 0.5 },
   'mix.master': { label: 'MASTER', min: 0, max: 1.2, def: 0.9 },
 };
 for (const [d] of DRUMS) {
@@ -55,11 +55,11 @@ for (const [d] of DRUMS) {
   META[`dr.${d}.tune`] = { label: 'TUNE', min: 0.5, max: 2, def: 1, exp: true, fmt: (v) => v.toFixed(2) + '×' };
 }
 for (const i of [0, 1]) {
-  META[`lfo${i}.rate`] = { label: 'RATE', min: 0.02, max: 12, def: i ? 2 : 0.08, exp: true, fmt: (v) => v.toFixed(2) + ' Hz' };
-  META[`lfo${i}.depth`] = { label: 'DEPTH', min: 0, max: 1, def: i ? 0 : 0.5 };
+  META[`lfo${i}.rate`] = { label: 'SPEED', min: 0.02, max: 12, def: i ? 2 : 0.08, exp: true,
+    fmt: (v) => (v < 1 ? `once / ${(1 / v).toFixed(v < 0.1 ? 0 : 1)}s` : `${v.toFixed(1)}× / s`) };
+  META[`lfo${i}.depth`] = { label: 'AMOUNT', min: 0, max: 1, def: i ? 0 : 0.5, fmt: (v) => Math.round(v * 100) + '%' };
 }
-const MOD_TARGETS = ['none', 'tb.cutoff', 'tb.reso', 'tb.envmod', 'tb.decay', 'tb.drive', 'pad.cutoff', 'pad.detune',
-  'fx.feedback', 'fx.tbdly', 'mix.tb', 'mix.pad', 'dr.hh.lvl', 'dr.hh.tune', 'dr.bd.tune'];
+const canMove = (k) => META[k] && !META[k].struct && !META[k].values && !k.startsWith('lfo');
 
 const norm = (k, v) => { const m = META[k];
   if (m.values) return m.values.indexOf(v) / (m.values.length - 1);
@@ -208,9 +208,18 @@ repl.addEventListener('update', (e) => {
   if (err) status('⚠ ' + (err.message || err));
 });
 
+// Strudel only loads its synth engine on the first ▶, so wake it on the first click/key instead
+let audioReady = null;
+const ensureAudio = () => (audioReady ??= (async () => {
+  while (typeof initAudio !== 'function') await new Promise((r) => setTimeout(r, 50));
+  await initAudio();
+})());
+['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => ensureAudio(), { capture: true, once: true }));
+
 // realtime notes (keyboard / step audition) straight into the sound engine
-function sound(midis, voice) {
+async function sound(midis, voice) {
   try {
+    await ensureAudio();
     const t = getAudioContext().currentTime + 0.01;
     for (const m of midis) {
       if (voice === 'tb')
@@ -241,7 +250,9 @@ function knob(k, { small = false } = {}) {
     if (k === 'bpm') $('#bpm-display').textContent = x;
     m.struct ? rebuild() : persist();
   };
+  if (!canMove(k)) el.classList.add('nomod');
   el.addEventListener('pointerdown', (e) => {
+    if (picking !== null) return pickTarget(k, e);
     el.setPointerCapture(e.pointerId); el.classList.add('drag');
     let y = e.clientY, n = norm(k, S.v[k]);
     el.onpointermove = (ev) => {
@@ -370,25 +381,55 @@ function renderDrums() {
     ...Array.from({ length: 16 }, (_, i) => h('span', {}, h('span', { className: 'led', id: `drled${i}` }), h('br'), String(i + 1)))));
 }
 
-// ---------- LFOs ----------
+// ---------- auto-move (LFOs) ----------
 const modLabel = (t) => {
   const [unit, a] = t.split('.');
   if (unit === 'dr') return `${DRUMS.find(([d]) => d === a)[1]} ${META[t].label}`;
-  return `${{ tb: '303', pad: 'PAD', fx: 'FX', mix: 'MIX' }[unit]} ${META[t].label}`;
+  return `${{ tb: '303', pad: 'PAD', fx: 'ECHO/REVERB', mix: '' }[unit]} ${META[t].label.replace('-', '')}`.trim();
 };
-const SHAPES = [['sine', '∿'], ['tri', '△'], ['saw', '◢'], ['square', '⊓'], ['s&h', '⁂']];
-const scopes = [];
+const SHAPES = [['sine', '∿ smooth'], ['tri', '△ even'], ['saw', '◢ ramp'], ['square', '⊓ on/off'], ['s&h', '⁂ random']];
+const scopes = [], targetEls = [];
+let picking = null;
+function pickTarget(k, e) {
+  e.preventDefault(); e.stopPropagation();
+  if (!canMove(k)) return status("that knob can't auto-move — pick a glowing one");
+  const i = picking;
+  S.lfo[i].dest = k;
+  if (!S.v[`lfo${i}.depth`]) { S.v[`lfo${i}.depth`] = 0.5; knobs[`lfo${i}.depth`].paint(); }
+  stopPicking(); persist(); renderMovers(); markModded();
+  status(`mover ${i + 1} now moves ${modLabel(k)}`);
+}
+function stopPicking() {
+  picking = null; document.body.classList.remove('picking');
+  document.querySelectorAll('.hwbtn.pick').forEach((b) => b.classList.remove('on'));
+}
+function renderMovers() {
+  [0, 1].forEach((i) => {
+    const d = S.lfo[i].dest, el = targetEls[i];
+    el.classList.toggle('empty', !canMove(d));
+    el.querySelector('b').textContent = canMove(d) ? modLabel(d) : 'nothing yet';
+  });
+}
 [0, 1].forEach((i) => {
   const shape = h('div', { className: 'switch' });
-  switcher(shape, SHAPES, () => S.lfo[i].shape, (s) => { S.lfo[i].shape = s; persist(); });
-  const dest = h('select', { className: 'hwsel' }, ...MOD_TARGETS.map((t) => h('option', { value: t, textContent: t === 'none' ? '— not patched —' : modLabel(t), selected: S.lfo[i].dest === t })));
-  dest.onchange = () => { S.lfo[i].dest = dest.value; persist(); markModded(); };
+  switcher(shape, SHAPES, () => S.lfo[i].shape, (v) => { S.lfo[i].shape = v; persist(); });
+  const pick = h('button', { className: 'hwbtn pick', textContent: '🎯 pick a knob', title: 'then click the knob you want to move' });
+  pick.onclick = () => {
+    if (picking === i) return stopPicking();
+    stopPicking(); picking = i; pick.classList.add('on'); document.body.classList.add('picking');
+    status('click any knob to make it move… (Esc to cancel)');
+  };
+  const clear = h('button', { className: 'hwbtn', textContent: '✕', title: 'stop moving' });
+  clear.onclick = () => { S.lfo[i].dest = 'none'; persist(); renderMovers(); markModded(); };
+  const target = h('div', { className: 'target' }, `MOVER ${i + 1} moves:`, h('b'), pick, clear);
+  targetEls.push(target);
   const scope = h('canvas', { className: 'scope', width: 300, height: 44 });
   scopes.push(scope);
-  $('#lfos').append(h('div', { className: 'lfo' },
+  $('#lfos').append(h('div', { className: `mover m${i}` }, target,
     h('div', { className: 'row' }, knob(`lfo${i}.rate`), knob(`lfo${i}.depth`)),
-    h('div', { className: 'side' }, scope, shape, h('div', { className: 'jack' }, `LFO ${i + 1} OUT →`, dest))));
+    h('div', { className: 'side' }, scope, shape)));
 });
+renderMovers();
 function markModded() {
   for (const k in knobs) knobs[k].el.classList.toggle('modded', S.lfo.some((l, i) => l.dest === k && S.v[`lfo${i}.depth`] > 0));
 }
@@ -413,25 +454,38 @@ function renderHeld() {
   document.querySelectorAll('#keyboard [data-m]').forEach((k) => k.classList.toggle('held', S.pad.latch && S.pad.held.includes(+k.dataset.m)));
 }
 
-// ---------- FX & mixer ----------
-for (const k of ['fx.time', 'fx.feedback', 'fx.size', 'fx.tbdly', 'fx.tbrev', 'fx.paddly', 'fx.padrev', 'fx.drrev']) $('#fx-knobs').append(knob(k));
+// ---------- echo/reverb + per-section volume strips ----------
+for (const k of ['fx.time', 'fx.feedback', 'fx.size']) $('#fx-knobs').append(knob(k));
 const meters = {};
-for (const ch of ['drums', 'tb', 'pad', 'master']) {
+function strip(el, ch, sends) {
   const k = `mix.${ch}`;
-  const input = h('input', { type: 'range', min: 0, max: 1.2, step: 0.01, value: S.v[k] });
-  input.oninput = () => { S.v[k] = +input.value; persist(); status(`${META[k].label} ${S.v[k].toFixed(2)}`); };
+  const input = h('input', { type: 'range', min: 0, max: 1.2, step: 0.01, value: S.v[k], title: 'double-click to reset' });
+  input.oninput = () => { S.v[k] = +input.value; persist(); status(`${{ drums: 'DRUMS', tb: '303', pad: 'PAD' }[ch]} VOLUME ${Math.round(S.v[k] * 100)}%`); };
   input.ondblclick = () => { input.value = S.v[k] = META[k].def; persist(); };
   meters[ch] = h('i');
-  $('#mixer').append(h('div', { className: 'fader' }, h('div', { className: 'row' }, h('div', { className: 'meter' }, meters[ch]), input), h('label', { textContent: META[k].label })));
+  el.append(h('div', { className: 'fader' }, h('div', { className: 'row' }, h('div', { className: 'meter' }, meters[ch]), input), h('label', { textContent: 'VOLUME' })),
+    ...sends.map((sk) => { const kn = knob(sk); kn.classList.add('mini-knob'); return kn; }));
 }
+strip($('#tb-strip'), 'tb', ['fx.tbdly', 'fx.tbrev']);
+strip($('#dr-strip'), 'drums', ['fx.drrev']);
+strip($('#pad-strip'), 'pad', ['fx.paddly', 'fx.padrev']);
+$('#master-knob').replaceWith(knob('mix.master'));
+META['mix.master'].label = 'MASTER';
 
 // ---------- keyboard ----------
 const KEYMAP = 'awsedftgyhujk'; // computer keys → semitones 0..12
 function renderKbTarget() {
-  switcher($('#kb-target'), [['pad', 'PLAY PAD'], ['transpose', '303 TRANSPOSE'], ['step', '303 STEP WRITE']], () => S.kb.target, (t) => {
-    S.kb.target = t; if (t !== 'step') { selStep = null; renderSeq(); } persist();
+  switcher($('#kb-target'), [['pad', '🎹 CHORD PAD'], ['transpose', '↕ 303 KEY'], ['step', '✎ 303 NOTES']], () => S.kb.target, (t) => {
+    S.kb.target = t; if (t !== 'step') { selStep = null; renderSeq(); } persist(); renderKbHint();
   });
+  renderKbHint();
 }
+const KB_HINTS = {
+  pad: 'Keys play the <b>CHORD PAD</b> synth. Pick a chord shape on the pad to play full chords; press HOLD to keep one looping.',
+  transpose: 'Keys move the whole <b>303 bassline</b> to a new root note — C plays it as written, D# shifts it up 3 semitones, and so on.',
+  step: 'Keys <b>write notes into the 303</b>: click a step’s green note display, then play a key — it fills that step and jumps to the next.',
+};
+function renderKbHint() { $('#kb-hint').innerHTML = KB_HINTS[S.kb.target] + ' &nbsp;·&nbsp; computer keys <kbd>A</kbd>…<kbd>K</kbd>, <kbd>Z</kbd>/<kbd>X</kbd> = octave'; }
 function renderKeyboard() {
   const kb = $('#keyboard'); kb.innerHTML = '';
   const base = 12 * (S.kb.oct + 1);
@@ -485,6 +539,7 @@ const downKeys = new Set();
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.repeat) return;
   if (e.code === 'Space') { e.preventDefault(); playing ? stop() : play(); return; }
+  if (e.key === 'Escape' && picking !== null) return stopPicking();
   if (e.key === 'z') return $('#kb-down').click();
   if (e.key === 'm') return $('#tb-mute').click();
   if (e.key === 'x') return $('#kb-up').click();

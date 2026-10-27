@@ -5,7 +5,7 @@ body { margin: 0; background: #1b1714 repeating-linear-gradient(90deg, #1d1915 0
   font: 12px "Helvetica Neue", Arial, sans-serif; color: #ddd; user-select: none; }
 strudel-editor, strudel-editor + div { display: none !important; }
 #rack { max-width: 1320px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.rowunits { display: grid; grid-template-columns: 1.3fr 1.2fr .8fr .9fr; gap: 12px; }
+.rowunits { display: grid; grid-template-columns: 1.25fr 1.35fr .75fr; gap: 12px; }
 
 /* ---------- generic unit ---------- */
 .unit { border-radius: 6px; padding: 10px 14px 12px; position: relative;
@@ -145,3 +145,29 @@ kbd { font: 10px ui-monospace, monospace; border: 1px solid currentColor; border
 .wkey.held::before, .bkey.held::before { content: '●'; position: absolute; top: 6px; color: var(--orange); font-size: 10px; }
 .switch.inline button { padding: 4px 8px; }
 #tb-mute { padding: 6px 12px; min-width: 64px; }
+
+/* ---------- plain-English explanations ---------- */
+.explain { font-size: 11px; line-height: 1.45; opacity: .75; margin: -2px 8px 10px; max-width: 640px; }
+.explain b { opacity: 1; }
+.kb-label { font-size: 10px; letter-spacing: 1px; opacity: .7; }
+
+/* ---------- channel strip: volume fader + echo/reverb ---------- */
+.strip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 5px; background: rgba(0,0,0,.18); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); }
+.strip .fader input { height: 70px; }
+.strip .fader .meter { height: 70px; }
+.strip .fader label { font-weight: bold; }
+.tr909 .strip .knob label, .tr909 .strip .fader label { color: #ddd; }
+.tr909 header .strip .knob { width: 52px; }
+.tr909 header .strip .knob .dial { width: 32px; height: 32px; }
+.mini-knob .dial { width: 32px !important; height: 32px !important; }
+
+/* ---------- auto-move ---------- */
+.mover { border-top: 1px solid #2a2a2a; padding: 8px 4px; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; }
+.mover .target { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.mover > .row { flex-wrap: nowrap; margin: 0; }
+.mover .target b { color: var(--sky); font-size: 12px; }
+.mover.m1 .target b { color: var(--orange); }
+.mover .target.empty b { color: #777; font-weight: normal; font-style: italic; }
+body.picking .knob { outline: 2px dashed var(--sky); outline-offset: 2px; border-radius: 6px; cursor: crosshair; }
+body.picking .knob.nomod { outline: none; opacity: .35; cursor: not-allowed; }
+.hwbtn.pick.on { background: var(--sky); color: #000; }
