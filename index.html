@@ -11,6 +11,8 @@
     select, button, label { white-space: nowrap;
       background: #161616; color: #d6ff3a; border: 1px solid #333; padding: 4px 8px; font: inherit; }
     button:hover { background: #d6ff3a; color: #000; cursor: pointer; }
+    .hw-link { color: #ff8a2a; border: 1px solid #ff8a2a; padding: 4px 8px; text-decoration: none; white-space: nowrap; }
+    .hw-link:hover { background: #ff8a2a; color: #000; }
     #status { margin-left: auto; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     main { display: flex; height: calc(100vh - 45px); }
     aside { width: 230px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid #222; padding: 8px; box-sizing: border-box; }
@@ -56,6 +58,7 @@
     <button id="saveas" title="save as a new file in patterns/ (⇧⌘S)">save as…</button>
     <span id="file-state"></span>
     <label title="when a pattern file is saved in another editor, load and play it here"><input type="checkbox" id="follow" checked /> hot-swap</label>
+    <a href="/hardware.html" class="hw-link" title="hardware mode: virtual 303, 909, synths & modulators">🎛 hardware</a>
     <span id="status">click play once to unlock audio</span>
   </header>
   <main>
@@ -457,7 +460,14 @@
       // autocomplete + hover docs while typing
       ed().updateSettings({ isAutoCompletionEnabled: true, isTooltipEnabled: true });
       watchForEdits();
-      if (files.length) load(files[0]);
+      // coming from hardware mode's "</> to code" button
+      const imported = new URLSearchParams(location.search).has('import') && localStorage.getItem('algotechno:import');
+      if (imported) {
+        history.replaceState(null, '', '/');
+        ed().setCode(imported);
+        currentFile = null; savedCode = '';
+        say('imported from hardware mode — 💾 save as… to keep it');
+      } else if (files.length) load(files[0]);
     })();
 
     picker.onchange = () => load(picker.value, playing);

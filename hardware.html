@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>algotechno // hardware</title>
+  <script src="https://unpkg.com/@strudel/repl@latest"></script>
+  <link rel="stylesheet" href="/hardware.css" />
+</head>
+<body>
+  <!-- the Strudel engine runs in a hidden editor; the hardware writes code into it -->
+  <strudel-editor id="repl"><!-- silence --></strudel-editor>
+
+  <div id="rack">
+    <!-- ===== top rail: transport ===== -->
+    <section class="unit transport">
+      <div class="brand">ALGO<span>TECHNO</span> <small>hardware</small></div>
+      <button id="play" class="hwbtn big green" title="space">▶</button>
+      <button id="stop" class="hwbtn big red" title="space">■</button>
+      <div class="seg-wrap"><div class="seg" id="bpm-display">132</div><label>BPM</label></div>
+      <div id="bpm-knob"></div>
+      <div id="swing-knob"></div>
+      <div class="spacer"></div>
+      <div id="status" class="lcd">click ▶ to power on</div>
+      <button id="to-code" class="hwbtn" title="open this setup as code in the editor">&lt;/&gt; to code</button>
+      <a href="/" class="hwbtn">✎ editor</a>
+    </section>
+
+    <!-- ===== TB-303 style bass line ===== -->
+    <section class="unit tb303">
+      <header><b>TB-303</b><i>BASS LINE</i><span class="sub">computer-controlled</span></header>
+      <div class="row knobs" id="tb-knobs"></div>
+      <div class="row">
+        <div class="switch" id="tb-wave"></div>
+        <div class="btns">
+          <button class="hwbtn" id="tb-random" title="new random pattern">RANDOM</button>
+          <button class="hwbtn" id="tb-mutate" title="change a few steps">MUTATE</button>
+          <button class="hwbtn" id="tb-clear">CLEAR</button>
+          <select id="tb-preset" class="hwsel"></select>
+        </div>
+      </div>
+      <div class="seq" id="tb-seq"></div>
+      <div class="hint">Click a step to select it → play a key (or press <kbd>A</kbd>–<kbd>K</kbd>) to set its note.
+        Scroll on a step to change pitch. ACC = accent, SLD = slide, ON = gate.</div>
+    </section>
+
+    <!-- ===== TR-909 style drums ===== -->
+    <section class="unit tr909">
+      <header><b>TR-909</b><i>RHYTHM COMPOSER</i><select id="dr-kit" class="hwsel"></select>
+        <select id="dr-preset" class="hwsel"></select>
+        <button class="hwbtn" id="dr-random">RANDOM HATS</button>
+        <button class="hwbtn" id="dr-clear">CLEAR</button></header>
+      <div id="dr-grid"></div>
+    </section>
+
+    <div class="rowunits">
+      <!-- ===== modulators ===== -->
+      <section class="unit euro" id="lfos">
+        <header><b>MOD</b><i>2× LFO</i></header>
+      </section>
+
+      <!-- ===== poly synth ===== -->
+      <section class="unit juno">
+        <header><b>POLY-6</b><i>PAD SYNTH</i></header>
+        <div class="row knobs" id="pad-knobs"></div>
+        <div class="row">
+          <div class="switch" id="pad-wave"></div>
+          <div class="btns">
+            <button class="hwbtn" id="pad-latch" title="hold the chord you play and loop it">HOLD</button>
+            <select id="pad-chord" class="hwsel" title="play a chord shape from one key"></select>
+          </div>
+        </div>
+        <div class="lcd small" id="pad-held">— no chord held —</div>
+      </section>
+
+      <!-- ===== FX ===== -->
+      <section class="unit fx">
+        <header><b>SPACE</b><i>DELAY · REVERB</i></header>
+        <div class="row knobs" id="fx-knobs"></div>
+      </section>
+
+      <!-- ===== mixer ===== -->
+      <section class="unit mixer">
+        <header><b>MIX</b></header>
+        <div class="faders" id="mixer"></div>
+      </section>
+    </div>
+
+    <!-- ===== keyboard ===== -->
+    <section class="unit keys">
+      <header><b>KEYS</b>
+        <span class="switch inline" id="kb-target"></span>
+        <button class="hwbtn" id="kb-down">OCT −</button><span class="lcd tiny" id="kb-oct">C3</span><button class="hwbtn" id="kb-up">OCT +</button>
+        <span class="hint">computer keys: <kbd>A W S E D F T G Y H U J K</kbd> · <kbd>Z</kbd>/<kbd>X</kbd> octave</span>
+      </header>
+      <div id="keyboard"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/hardware.js"></script>
+</body>
+</html>

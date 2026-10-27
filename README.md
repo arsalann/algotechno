@@ -27,6 +27,20 @@ Open in Chrome, hit **play** once to unlock audio.
 - **💾 save (⌘S) / save as… (⇧⌘S)** — writes your browser edits to `patterns/`. "● unsaved" shows when you have changes.
 - **🎲 mutate** — makes one small random musical change (new phrase, scale, sweep speed, a knob…). `⌘Z` undoes it.
 
+## 🎛 Hardware mode
+
+Open **http://localhost:4321/hardware.html** (or the 🎛 button in the editor) for a virtual studio:
+
+- **TB-303** — 16-step bass sequencer with accent/slide, cutoff/resonance/env mod/decay/accent/drive knobs, saw/square, random/mutate/presets
+- **TR-909** — 10-voice step grid with per-voice level/tune/mute, kit switch (909/808/707/606/Linn/DMX/…), pattern presets
+- **MOD** — two LFOs (sine/tri/saw/square/S&H) you patch onto any knob; patched knobs wobble to show it
+- **POLY-6** — pad synth played from the keyboard; HOLD loops a chord into the track
+- **SPACE** — delay + reverb with per-instrument sends · **MIX** — channel faders with meters
+- **KEYS** — on-screen + computer keyboard (`A W S E D F T G Y H U J K`, `Z`/`X` octave) to play the pad, transpose the 303 or step-write notes. Space = play/stop.
+- **</> to code** turns the current setup into Strudel code in the editor so you can keep going there.
+
+Everything is saved in your browser automatically.
+
 ## Patterns
 
 - `01-acid-basics.js` — one 303 line + 909, learn the knobs
