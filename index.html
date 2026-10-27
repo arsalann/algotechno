@@ -58,7 +58,7 @@
     <button id="saveas" title="save as a new file in patterns/ (⇧⌘S)">save as…</button>
     <span id="file-state"></span>
     <label title="when a pattern file is saved in another editor, load and play it here"><input type="checkbox" id="follow" checked /> hot-swap</label>
-    <a href="/hardware.html" class="hw-link" title="hardware mode: virtual 303, 909, synths & modulators">🎛 hardware</a>
+    <a href="/hardware.html" class="hw-link" id="to-hw" title="open this code in hardware mode: virtual 303, 909, synths & modulators">🎛 hardware</a>
     <span id="status">click play once to unlock audio</span>
   </header>
   <main>
@@ -471,6 +471,15 @@
     })();
 
     picker.onchange = () => load(picker.value, playing);
+
+    // 🎛 hardware: take the current code along (hardware mode reads it into the machines)
+    document.getElementById('to-hw').onclick = (e) => {
+      e.preventDefault();
+      if (validate().some((p) => p.level === 'error')) return say('fix the red error first — hardware mode needs code that runs');
+      if (playing) stop();
+      localStorage.setItem('algotechno:tohw', JSON.stringify({ code: view().state.doc.toString(), file: currentFile }));
+      location.href = '/hardware.html?from=editor';
+    };
 
     // ---------- 🎹 note editor ----------
     let refreshTimer;

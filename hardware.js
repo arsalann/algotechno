@@ -601,5 +601,111 @@ function frame() {
 renderSeq(); renderTbMute(); renderDrums(); renderKbTarget(); renderKeyboard(); markModded();
 document.addEventListener('pointerup', markModded);
 requestAnimationFrame(frame);
-(async () => { while (!ed()) await new Promise((r) => setTimeout(r, 50)); ed().setCode(gen(true)); })();
+(async () => {
+  while (!ed()) await new Promise((r) => setTimeout(r, 50));
+  const from = new URLSearchParams(location.search).get('from');
+  const incoming = from === 'editor' && JSON.parse(localStorage.getItem('algotechno:tohw') || 'null');
+  if (incoming) {
+    const msg = await importCode(incoming.code, incoming.file);
+    sessionStorage.setItem('algotechno:hwmsg', msg);
+    location.replace('/hardware.html'); // reload so every panel redraws from the imported state
+    return;
+  }
+  const msg = sessionStorage.getItem('algotechno:hwmsg');
+  if (msg) { sessionStorage.removeItem('algotechno:hwmsg'); status(msg); }
+  ed().setCode(gen(true));
+})();
+
+// ---------- import: code → hardware ----------
+// Runs the code silently with Strudel, looks at the notes it makes in the first bars,
+// and maps them onto the machines. Works for generated patterns too; anything that
+// doesn't fit a machine is left out (the original file is never changed).
+const DRUM_NAMES = { bd: 'bd', sd: 'sd', lt: 'lt', mt: 'lt', ht: 'ht', rim: 'rim', cp: 'cp', hh: 'hh', oh: 'oh', cr: 'cr', rd: 'rd' };
+const toMidi = (n) => {
+  if (typeof n === 'number') return Math.round(n);
+  const m = /^([a-g])(#|s|b)?(-?\d)?$/i.exec(String(n));
+  if (!m) return null;
+  return 12 * (+(m[3] ?? 3) + 1) + { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }[m[1].toLowerCase()] + (m[2] === 'b' ? -1 : m[2] ? 1 : 0);
+};
+const clamp = (k, v) => Math.min(META[k].max, Math.max(META[k].min, v));
+async function importCode(code, file) {
+  const name = file || 'the editor';
+  try {
+    ed().setCode(code);
+    await ed().evaluate(false); // evaluate without starting playback
+  } catch (e) { return `⚠ couldn't read ${name}: ${e.message}`; }
+  const pat = ed().repl.state.pattern;
+  if (!pat) return `⚠ ${name} has errors — fix them in the editor first`;
+  const cps = ed().repl.scheduler.cps;
+  if (cps) S.v.bpm = Math.round(Math.min(META.bpm.max, Math.max(META.bpm.min, cps * 240)));
+
+  const cycles = [0, 1, 2, 3].map((c) => pat.queryArc(c, c + 1).filter((h) => h.hasOnset()).map((h) => ({ step: Math.round((h.whole.begin - c) * 16) % 16, v: h.value })));
+  const isDrum = (v) => typeof v.s === 'string' && DRUM_NAMES[v.s] && v.note == null;
+  // the 303 takes ONE synth line: the saw/square sound with the lowest notes
+  const all = cycles.flat().map((h) => h.v);
+  const bassCands = all.filter((v) => ['sawtooth', 'square'].includes(v.s) && v.note != null && toMidi(v.note) < 60);
+  const avgNote = (sn) => { const ns = bassCands.filter((v) => v.s === sn).map((v) => toMidi(v.note)); return ns.reduce((a, b) => a + b, 0) / ns.length; };
+  const bassSound = [...new Set(bassCands.map((v) => v.s))].sort((a, b) => avgNote(a) - avgNote(b))[0];
+  const isBass = (v) => v.s === bassSound && v.note != null && toMidi(v.note) < 60;
+  // the pad takes real chords only (2+ notes at once); single notes / sub bass are skipped
+  const isPad = (v) => v.note != null && !isBass(v) && !isDrum(v) && toMidi(v.note) >= 36;
+
+  // start from empty machines, so nothing from the previous session leaks in
+  S.dr.rows = drumPreset('Empty'); S.dr.mute = {};
+  S.tb.steps = blankSteps(); S.tb.transpose = 0; S.v['tb.tune'] = 0; S.tb.mute = false;
+  S.pad.held = []; S.pad.latch = false;
+  // use the first bar in which each machine has something to play (handles intros / masks)
+  const firstWith = (fn) => cycles.find((c) => c.some((h) => fn(h.v))) ?? [];
+  const found = [], ignored = new Set();
+
+  const drums = firstWith(isDrum);
+  if (drums.length) {
+    const gains = {};
+    for (const { step, v } of drums) {
+      if (!isDrum(v)) continue;
+      const d = DRUM_NAMES[v.s];
+      S.dr.rows[d][step] = true;
+      if (v.bank) S.dr.kit = KITS.find((k) => k.toLowerCase() === String(v.bank).toLowerCase()) || S.dr.kit;
+      if (typeof v.gain === 'number') gains[d] = Math.max(gains[d] ?? 0, v.gain);
+    }
+    for (const d in gains) S.v[`dr.${d}.lvl`] = clamp(`dr.${d}.lvl`, gains[d]);
+    found.push(`drums (${Object.values(S.dr.rows).filter((r) => r.some(Boolean)).length} sounds)`);
+  }
+
+  const bass = firstWith(isBass);
+  if (bass.length) {
+    const hits = bass.filter((h) => isBass(h.v));
+    const loud = Math.max(...hits.map((h) => h.v.velocity ?? h.v.gain ?? 1));
+    for (const { step, v } of hits) {
+      const st = S.tb.steps[step], n = toMidi(v.note);
+      if (st.gate && st.n <= n) continue; // keep the lowest note if several land on one step
+      Object.assign(st, { n, gate: true, acc: (v.velocity ?? v.gain ?? 1) >= loud * 0.95 && hits.some((x) => (x.v.velocity ?? x.v.gain ?? 1) < loud * 0.95), slide: (v.sustain ?? 0) > 0.5 });
+    }
+    const v = hits[0].v;
+    S.tb.wave = v.s === 'square' ? 'square' : 'sawtooth';
+    if (typeof v.cutoff === 'number') S.v['tb.cutoff'] = clamp('tb.cutoff', v.cutoff);
+    if (typeof v.resonance === 'number') S.v['tb.reso'] = clamp('tb.reso', v.resonance);
+    if (typeof v.lpenv === 'number') S.v['tb.envmod'] = clamp('tb.envmod', v.lpenv);
+    if (typeof v.decay === 'number') S.v['tb.decay'] = clamp('tb.decay', v.decay);
+    if (typeof v.shape === 'number') S.v['tb.drive'] = clamp('tb.drive', v.shape);
+    found.push('303 bassline');
+  }
+
+  const chordAt = (c) => { const ps = c.filter((h) => isPad(h.v)); for (const h of ps) { const at = ps.filter((x) => x.step === h.step); if (new Set(at.map((x) => toMidi(x.v.note))).size > 1) return at; } return null; };
+  const first = cycles.map(chordAt).find(Boolean);
+  if (first) {
+    const chord = first.map((h) => toMidi(h.v.note));
+    S.pad.held = [...new Set(chord)].sort((a, b) => a - b); S.pad.latch = true;
+    const waves = ['supersaw', 'sawtooth', 'square', 'triangle', 'gm_pad_warm', 'gm_epiano1'];
+    if (waves.includes(first[0].v.s)) S.pad.wave = first[0].v.s;
+    if (typeof first[0].v.cutoff === 'number') S.v['pad.cutoff'] = clamp('pad.cutoff', first[0].v.cutoff);
+    found.push(`chord pad (${S.pad.held.map(noteName).join(' ')})`);
+  }
+
+  const padSound = first?.[0].v.s;
+  for (const v of all) if (!isDrum(v) && !isBass(v) && v.s !== padSound) ignored.add(v.s ?? '?');
+  persist();
+  if (!found.length) return `⚠ nothing in ${name} fits the machines — try a pattern with drums or a note() bassline`;
+  return `loaded ${name}: ${found.join(', ')}${ignored.size ? ` · skipped: ${[...ignored].join(', ')}` : ''}`;
+}
 window.HW = { S, gen }; // handy for poking around in the console
